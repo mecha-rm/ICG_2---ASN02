@@ -224,7 +224,7 @@ void icg::PostLight::Update(float deltaTime)
 	if (pvtPosition != position)
 	{
 		(index >= 0) ?
-			shader->SetUniform(("a_PostLights[" + std::to_string(index) + "].position").c_str(), position) : 
+			shader->SetUniform(("a_Lights[" + std::to_string(index) + "].position").c_str(), position) : 
 			shader->SetUniform("a_LightPos", position);
 
 		pvtPosition = position;
@@ -242,7 +242,7 @@ void icg::PostLight::Update(float deltaTime)
 	if (pvtColor != color)
 	{
 		(index >= 0) ?
-			shader->SetUniform(("a_PostLights[" + std::to_string(index) + "].color").c_str(), color) :
+			shader->SetUniform(("a_Lights[" + std::to_string(index) + "].color").c_str(), color) :
 			shader->SetUniform("a_Color", color);
 
 		pvtColor = color;
@@ -252,7 +252,7 @@ void icg::PostLight::Update(float deltaTime)
 	if (pvtAttenuation != attenuation)
 	{
 		(index >= 0) ?
-			shader->SetUniform(("a_PostLights[" + std::to_string(index) + "].attenuation").c_str(), attenuation) :
+			shader->SetUniform(("a_Lights[" + std::to_string(index) + "].attenuation").c_str(), attenuation) :
 			shader->SetUniform("a_Attenuation", color);
 
 		pvtAttenuation = attenuation;
@@ -262,7 +262,7 @@ void icg::PostLight::Update(float deltaTime)
 	if (pvtShininess != shininess)
 	{
 		(index >= 0) ?
-			shader->SetUniform(("a_PostLights[" + std::to_string(index) + "].shininess").c_str(), shininess) :
+			shader->SetUniform(("a_Lights[" + std::to_string(index) + "].shininess").c_str(), shininess) :
 			shader->SetUniform("a_MatShininess", shininess);
 	
 		pvtShininess = shininess;

@@ -76,7 +76,7 @@ namespace icg
 		PostLight * postLight = nullptr;
 
 		// if 'true', the default light is generated.
-		const bool DEFAULT_LIGHT_ENABLED = true;
+		const bool DEFAULT_LIGHT_ENABLED = false;
 		
 	protected:
 

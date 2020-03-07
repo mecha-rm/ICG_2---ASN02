@@ -37,7 +37,7 @@ void icg::ICG_MainScene::OnOpen()
 	Material::Sptr volumeMat; // material for light volumes
 
 	// CAMERA
-	game->myClearColor = glm::vec4(0.74F, 0.251F, 0.9F, 1.0F); 
+	game->myClearColor = glm::vec4(0.74F, 0.251F, 0.9F, 1.0F);
 
 	// Material::Sptr mat1 = Material::;
 	// setting up the camera
@@ -105,7 +105,7 @@ void icg::ICG_MainScene::OnOpen()
 	prim->CreateEntity(GetName(), objectMat);
 	objectList->AddObject(prim);
 
-	prim = new Plane(300.0F, 300.0F, false, Vec4(0.4F, 0.4F, 0.4F, 1.0F));
+	prim = new Plane(500.0F, 500.0F, false, Vec4(0.4F, 0.4F, 0.4F, 1.0F));
 	prim->SetPosition(0, 0, 0);
 	prim->CreateEntity(GetName(), objectMat);
 	objectList->AddObject(prim);
@@ -120,9 +120,9 @@ void icg::ICG_MainScene::OnOpen()
 
 	/// FRAME BUFFERS
 	// frame buffer
-	FrameBuffer::Sptr fb = std::make_shared<FrameBuffer>(myWindowSize.x, myWindowSize.y); 
+	FrameBuffer::Sptr fb = std::make_shared<FrameBuffer>(myWindowSize.x, myWindowSize.y);
 
-	// scene colour
+	// scene colour 
 	RenderBufferDesc sceneColor = RenderBufferDesc();
 	sceneColor.ShaderReadable = true;
 	sceneColor.Attachment = RenderTargetAttachment::Color0;
@@ -141,10 +141,10 @@ void icg::ICG_MainScene::OnOpen()
 	// fb->AddAttachment()
 	// registry frame buffer
 	Registry().ctx_or_set<FrameBuffer::Sptr>(fb);
-	
+
 
 	// TODO: lighting controls
-	
+
 	// LIGHT
 	// light shader
 	// post light
@@ -162,17 +162,24 @@ void icg::ICG_MainScene::OnOpen()
 		postLight->shader->SetUniform("a_LightAttenuation", postLight->attenuation);
 		postLight->shader->SetUniform("a_MatShininess", postLight->shininess);
 		postLight->shader->SetUniform("a_UseClearColor", 1); // uses clear color instead of black
+
+		// light buffer 
+		ls_fb = std::make_shared<FrameBuffer>(myWindowSize.x, myWindowSize.y);
+		ls_fb->AddAttachment(sceneColor);
+		ls_fb->AddAttachment(sceneDepth);
+
+		// adding the layer
+		layers.push_back(new PostLayer(postLight->shader, ls_fb));
+	}
+	else
+	{
+		LoadFromFile("res/icg_2-asn02-light_info.txt");
+		UseClearColor(true);
 	}
 
-	// light buffer 
-	ls_fb = std::make_shared<FrameBuffer>(myWindowSize.x, myWindowSize.y);
-	ls_fb->AddAttachment(sceneColor);
-	ls_fb->AddAttachment(sceneDepth);
 
-	// adding the post processing layer. 
-	layers.push_back(new PostLayer(postLight->shader, ls_fb));
 	// post-> 
-	 
+
 	// adds a post-processing 
 	// layers.push_back(new PostLayer(POST_VS, "res/shaders/post/invert.fs.glsl"));
 	// layers.push_back(new PostLayer(POST_VS, "res/shaders/post/greyscale.fs.glsl"));
@@ -182,22 +189,34 @@ void icg::ICG_MainScene::OnOpen()
 	// TODO: make lights move around. 
 
 	// PATH BEHAVIOUR
-	cherry::Path path = Path(postLight->position);
+	cherry::Path path = Path();
+
+	if (DEFAULT_LIGHT_ENABLED)
+		path.SetStartingPoint(postLight->position);
 
 	path.AddNode(90.0F, 83.25F, 5.0F);
 	path.AddNode(-112.0F, -130.0F, 12.0F);
-	path.AddNode(-210.0F, 0.0F, 10.0F); 
+	path.AddNode(-210.0F, 0.0F, 10.0F);
 	path.AddNode(1.0F, 30.0F, 84.0F);
-	path.AddNode(-17.0F, 50.0F, 10.0F);
+	path.AddNode(-17.0F, 50.0F, 10.0F); 
 
 	// closed loop
 	path.SetClosedPath(true);
 	path.SetIncrementer(0.1F); // incrementer
 	path.SetSpeedControl(true); // speed control
 
-	
-	if(DEFAULT_LIGHT_ENABLED && postLight != nullptr)
+	// adding the path
+	if (DEFAULT_LIGHT_ENABLED && postLight != nullptr)
+	{
 		postLight->path = path;
+	}
+	// // giving the path to all the lights.
+	// for (PostLight* light : lights)
+	// {
+	// 	light->path = path;
+	// 	light->path.SetIncrementer(0.01F);
+	// 	light->path.SetStartingPoint(light->position);
+	// }
 }
 
 // scene close
@@ -479,9 +498,11 @@ void icg::ICG_MainScene::LoadFromFile(std::string filePath)
 
 	// post-processing shader
 	cherry::Shader::Sptr ls_shader = std::make_shared<Shader>();
+	cherry::Material::Sptr ls_material;
 
 	// light shader
 	ls_shader->Load(POST_VS, BLINN_PHONG_POST_MULTI);
+	ls_material = std::make_shared<Material>(ls_shader);
 
 	// scene colour
 	RenderBufferDesc sceneColor = RenderBufferDesc();
@@ -496,7 +517,7 @@ void icg::ICG_MainScene::LoadFromFile(std::string filePath)
 	sceneDepth.Format = RenderTargetType::Depth24;
 
 	// light buffer 
-	ls_fb = std::make_shared<FrameBuffer>(game->GetWindowWidth(), game->GetWindowHeight());
+	ls_fb = std::make_shared<FrameBuffer>((float)game->GetWindowWidth(), (float)game->GetWindowHeight());
 	ls_fb->AddAttachment(sceneColor);
 	ls_fb->AddAttachment(sceneDepth);
 
@@ -515,22 +536,26 @@ void icg::ICG_MainScene::LoadFromFile(std::string filePath)
 		{
 			// TODO: is this needed?
 			// lights.resize(util::convertString<int>(comps[1]));
+
+			// setting the amount of enabled lights (max is 25)
+			ls_shader->SetUniform("a_EnabledLights", util::convertString<int>(comps[1]));
 		}
 		else if (util::isInt(comps[0])) // number value of some sort.
 		{
 			// Order
-			// Number/PositionX/PositionY/PositionZ/ColorRed/ColorGreen/ColorBlue/Attenuation/Shininess
-			// if (index < comps.size())
-			// {
-			PostLight* light = new PostLight(GetName(), ls_shader); // light
-
+			// Number/PositionX/PositionY/PositionZ/ColorRed/ColorGreen/ColorBlue/Attenuation/Shininess 
+	
+			// passing in the scene name, the material, and the index.
+			PostLight* light = new PostLight(GetName(), ls_material, util::convertString<int>((comps[0]))); // light
+			 
 			// index
-			light->index = util::convertString<int>((comps[0]));
+			// light->index = util::convertString<int>((comps[0])); 
 
 			// Position (x, y, z)
 			light->position.x = util::convertString<float>((comps[1]));
 			light->position.y = util::convertString<float>((comps[2]));
 			light->position.z = util::convertString<float>((comps[3]));
+
 
 			// Color (r, g, b)
 			light->color.r = util::convertString<float>((comps[4]));
@@ -545,6 +570,7 @@ void icg::ICG_MainScene::LoadFromFile(std::string filePath)
 			// index++;
 			// }
 
+			light->path = Path(light->position);
 			// changing values in shader
 			light->Update(0);
 

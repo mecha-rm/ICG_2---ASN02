@@ -18,9 +18,6 @@ uniform vec3 a_CameraPos;
 // maximum amount of lights
 #define MAX_LIGHTS 25
 
-// number of enabled lights
-uniform int a_EnabledLights;
-
 // struct for post light
 struct PostLight
 {
@@ -31,7 +28,11 @@ struct PostLight
 };
 
 // post lights
-uniform PostLight a_PostLights[MAX_LIGHTS]; 
+uniform PostLight a_Lights[MAX_LIGHTS]; 
+
+// number of enabled lights
+uniform int a_EnabledLights;
+
 
 // if 'true', then the clear colour is used for background pixels.
 uniform int a_UseClearColor;
@@ -57,7 +58,7 @@ vec4 GetWorldPos(vec2 uv) {
 }
 
 // Caluclate the blinn-phong factor
-vec3 BlinnPhong(vec3 fragPos, vec3 fragNorm, vec3 lightPosition, vec3 lightColor, float lAttenuation, float lshininess) {
+vec3 BlinnPhong(vec3 fragPos, vec3 fragNorm, vec3 lightPosition, vec3 lightColor, float lAttenuation, float lShininess) {
 	// Determine the direction from the position to the light
 	vec3 toLight = lightPosition - fragPos;
 
@@ -74,7 +75,7 @@ vec3 BlinnPhong(vec3 fragPos, vec3 fragNorm, vec3 lightPosition, vec3 lightColor
 
 	// Our specular power is the angle between the the normal and the half vector, raised
 	// to the power of the light's shininess
-	float specPower = pow(max(dot(fragNorm, halfDir), 0.0), lshininess);
+	float specPower = pow(max(dot(fragNorm, halfDir), 0.0), lShininess);
 
 	// Finally, we can calculate the actual specular factor
 	vec3 specOut = specPower * lightColor;
@@ -111,21 +112,31 @@ void main() {
 	}
 	else // if its not a background pixel.
 	{
+		// value that will be used to average the result.
+		float div = 0.0F;
+
 		// loop for enabled lights
 		if(enabledLights > 0)
 		{
 			for(int i = 0; i < enabledLights; i++)
 			{
 				// getting the result.
-				result += BlinnPhong(worldPos.xyz, worldNormal, 
-				a_PostLights[i].position, a_PostLights[i].color, a_PostLights[i].attenuation, a_PostLights[i].shininess);
+				vec3 res = BlinnPhong(worldPos.xyz, worldNormal, 
+				a_Lights[i].position, a_Lights[i].color, a_Lights[i].attenuation, a_Lights[i].shininess);
+
+				result += res;
+
+				// if res has no effect on the light colour, it shouldn't be accounted for in the averaging of the colours.
+				if(res != vec3(0, 0, 0))
+					div += 1.0f;
 			}
-		
-			// averaging results
-			result /= enabledLights;
+
+			// averaging results based on lights that had an effect on the final colour.
+			// result.x = result.x / div;
+			// result.y = result.y / div;
+			// result.z = result.z / div;
 		}
-	}
-	
+	}	
 
 	// Output the result
 	outColor = vec4(result, 1.0);
