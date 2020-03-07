@@ -1,7 +1,10 @@
 #pragma once
 #include "cherry/scenes/GameplayScene.h"
-// #include "PostLight.h"
+#include "PostLight.h"
 #include <vector>
+
+#define BLINN_PHONG_POST "res/shaders/post/blinn-phong-post.fs.glsl"
+#define BLINN_PHONG_POST_MULTI "res/shaders/post/blinn-phong-post-multi.fs.glsl"
 
 namespace icg
 {
@@ -44,6 +47,9 @@ namespace icg
 		// loads the lights from a file
 		void LoadFromFile(std::string filePath);
 
+		// if 'true', then the clear colour gets used.
+		void UseClearColor(bool useClear);
+
 		// translation direction
 		glm::vec3 t_Dir = glm::vec3(0, 0, 0);
 
@@ -58,29 +64,20 @@ namespace icg
 		bool mbLeft = false, mbMiddle = false, mbRight = false;
 
 		// Assignment Variables
-		cherry::Shader::Sptr l_shader; // shader
-		cherry::FrameBuffer::Sptr l_fb; // frame buffer
 
-		// a path for the light to follow.
-		cherry::Path path;
+		// Multi-lights
+		// cherry::Shader::Sptr ls_shader; // shader
+		cherry::FrameBuffer::Sptr ls_fb; // frame buffer
 
-		// post processing light.
-		struct PostLight
-		{
-			glm::vec3 position;
-			glm::vec3 color;
-			float attenuation;
-			float shininess;
-		};
+		// vector of lights
+		std::vector<PostLight*> lights;
 
-		// the post processed light.
-		PostLight postLightOrig; // starting values
-		PostLight postLight; // current point light.
+		// single post light
+		PostLight * postLight = nullptr;
 
-		// the sphere representing the volume of the light.
-		cherry::PrimitiveUVSphere* lightBody = nullptr;
-
-		std::vector<PostLight> lights;
+		// if 'true', the default light is generated.
+		const bool DEFAULT_LIGHT_ENABLED = true;
+		
 	protected:
 
 	};

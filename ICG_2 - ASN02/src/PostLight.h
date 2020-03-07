@@ -10,24 +10,57 @@ namespace icg
 	class PostLight
 	{
 	public:
+		PostLight() = default;
+
 		// constructor - makes empty shader
-		PostLight();
+		PostLight(std::string sceneName);
+
+		// creates the post light by providing it with its vertex shader and fragment shader
+		PostLight(std::string sceneName, std::string vs, std::string fs);
+
+		// creates the post light by providing it with its vertex shader, fragement shader, and index in both.
+		PostLight(std::string sceneName, std::string vs, std::string fs, int index);
 
 		// constructor with shader
-		PostLight(cherry::Shader::Sptr shader);
+		PostLight(std::string sceneName, cherry::Shader::Sptr shader);
 
 		// creates a light with a shader and index.
 		// if the index is negative, it's assumed that its a single-light shader.
-		PostLight(cherry::Shader::Sptr shader, int index);
+		PostLight(std::string sceneName, cherry::Shader::Sptr shader, int index);
+
+		// constructor with material
+		PostLight(std::string sceneName, cherry::Material::Sptr material);
+
+		// creates a light with a material and index.
+		// if the index is negative, it's assumed that its a single-light shader.
+		PostLight(std::string sceneName, cherry::Material::Sptr material, int index);
+
+		// destructor
+		~PostLight();
+
+		// gets the sphere body
+		cherry::PrimitiveUVSphere* GetPrimitiveSphere() const;
+
+		// gets the cube body
+		cherry::PrimitiveCube* GetPrimitiveCube() const;
+
+		// gets the cone body
+		cherry::PrimitiveCone* GetPrimitiveCone() const;
+
+		// sets the volume type being used.
+		// 0 - sphere, 1 - cube, 2 - cone
+		void SetVolumeType(unsigned int index);
+
+		// gets the alpha value of the light volume.
+		// if the bodies don't exist, -1 is returned.
+		float GetAlpha() const;
+
+		// sets the alpha of the volumes for this light.
+		void SetAlpha(float alpha);
 
 		// updates the light, updating the values in the shader for the light.
 		// this also runs the path if there is one.
 		void Update(float deltaTime);
-
-		// shader
-		// single - blinn-phong-post.fs.glsl
-		// multi - blinn-phong-post-multi.fs.glsl
-		cherry::Shader::Sptr shader;
 
 		// position
 		glm::vec3 position{};
@@ -47,16 +80,41 @@ namespace icg
 		// the index of the light in the shader.
 		// if the index is set to -1, then it is the only light for the shader.
 		int index = -1;
+
+		// shader
+		// single - blinn-phong-post.fs.glsl
+		// multi - blinn-phong-post-multi.fs.glsl
+		cherry::Shader::Sptr shader = nullptr;
+
+		// material
+		cherry::Material::Sptr material = nullptr;
+
 	private:
-		// the body for the object.
-		cherry::PrimitiveUVSphere * body;
+
+		// creates the bodies
+		void CreateBodies(const std::string sceneName);
 
 		// original values
 		// the private versions are checked against the public versions.
-		glm::vec3 pvtPosition;
-		glm::vec3 pvtColor;
-		float pvtAttenuation;
-		float pvtShininess;
+		glm::vec3 pvtPosition{};
+		glm::vec3 pvtColor{};
+
+		float pvtAttenuation = 0.0F;
+		float pvtShininess = 0.0F;
+
+		// the amount of bodies avaialble
+		const int BODY_COUNT = 3;
+
+		/*
+		 * 	the three bodies that can be swapped between.
+		 *** 0 - sphere
+		 *** 1 - cube
+		 *** 2 - cone
+		*/
+		cherry::Primitive* bodies[3]{ nullptr, nullptr, nullptr };
+		
+		// if 'true', then the bodies have been defined.
+		bool bodiesCreated = false;
 
 	protected:
 

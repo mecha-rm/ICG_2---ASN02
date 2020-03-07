@@ -141,32 +141,36 @@ void icg::ICG_MainScene::OnOpen()
 	// fb->AddAttachment()
 	// registry frame buffer
 	Registry().ctx_or_set<FrameBuffer::Sptr>(fb);
+	
 
-	// post layer for lighting
-	l_shader = std::make_shared<Shader>();
-
-	postLight.position = { 1.0F, 1.0F, 10.0F };
-	postLight.color = { 0.214F, 0.892F, 0.528F };
-	postLight.attenuation = 1.0F / 10000.0F;
-	postLight.shininess = 40.0F;
-
-	postLightOrig = postLight;
-
+	// TODO: lighting controls
+	
+	// LIGHT
 	// light shader
-	l_shader->Load(POST_VS, "res/shaders/post/blinn-phong-post.fs.glsl");
-	l_shader->SetUniform("a_LightPos", postLight.position);
-	l_shader->SetUniform("a_LightColor", postLight.color);
-	l_shader->SetUniform("a_LightAttenuation", postLight.attenuation); 
-	l_shader->SetUniform("a_MatShininess", postLight.shininess);
-	l_shader->SetUniform("a_UseClearColor", 1); // uses clear color instead of black
+	// post light
+	if (DEFAULT_LIGHT_ENABLED)
+	{
+		postLight = new PostLight(GetName(), POST_VS, BLINN_PHONG_POST);
+		postLight->SetVolumeType(1);
+		postLight->position = { 1.0F, 1.0F, 10.0F };
+		postLight->color = { 0.214F, 0.892F, 0.528F };
+		postLight->attenuation = 1.0F / 10000.0F;
+		postLight->shininess = 40.0F;
+
+		postLight->shader->SetUniform("a_LightPos", postLight->position);
+		postLight->shader->SetUniform("a_LightColor", postLight->color);
+		postLight->shader->SetUniform("a_LightAttenuation", postLight->attenuation);
+		postLight->shader->SetUniform("a_MatShininess", postLight->shininess);
+		postLight->shader->SetUniform("a_UseClearColor", 1); // uses clear color instead of black
+	}
 
 	// light buffer 
-	l_fb = std::make_shared<FrameBuffer>(myWindowSize.x, myWindowSize.y);
-	l_fb->AddAttachment(sceneColor);
-	l_fb->AddAttachment(sceneDepth);
+	ls_fb = std::make_shared<FrameBuffer>(myWindowSize.x, myWindowSize.y);
+	ls_fb->AddAttachment(sceneColor);
+	ls_fb->AddAttachment(sceneDepth);
 
 	// adding the post processing layer. 
-	layers.push_back(new PostLayer(l_shader, l_fb));
+	layers.push_back(new PostLayer(postLight->shader, ls_fb));
 	// post-> 
 	 
 	// adds a post-processing 
@@ -177,20 +181,8 @@ void icg::ICG_MainScene::OnOpen()
 
 	// TODO: make lights move around. 
 
-	// Light Body
-	// TODO: encompass attenuated light properly.
-	lightBody = new PrimitiveUVSphere(12.5, 30, 30);
-	lightBody->SetPosition(postLight.position);
-	lightBody->CreateEntity(GetName(), volumeMat);
-	lightBody->SetWireframeMode(true);
-	lightBody->SetVisible(true);
-	lightBody->SetPostProcess(false);
-	lightBody->SetAlpha(0.20f);
-	// lightBody->GetMesh()->cullFaces = false;
-	objectList->AddObject(lightBody);
-
 	// PATH BEHAVIOUR
-	path = Path(postLight.position);
+	cherry::Path path = Path(postLight->position);
 
 	path.AddNode(90.0F, 83.25F, 5.0F);
 	path.AddNode(-112.0F, -130.0F, 12.0F);
@@ -203,12 +195,26 @@ void icg::ICG_MainScene::OnOpen()
 	path.SetIncrementer(0.1F); // incrementer
 	path.SetSpeedControl(true); // speed control
 
+	
+	if(DEFAULT_LIGHT_ENABLED && postLight != nullptr)
+		postLight->path = path;
 }
 
 // scene close
 void icg::ICG_MainScene::OnClose()
 {
+	// deleting the single post light
+	delete postLight;
+
+	// deleting the ohter lights
+	for (PostLight* light : lights)
+		delete light;
+
+	lights.clear();
+
+	// deletes the object lists and all objects that are in them.
 	cherry::GameplayScene::OnClose();
+
 }
 
 // mouse button pressed.
@@ -307,6 +313,20 @@ void icg::ICG_MainScene::KeyPressed(GLFWwindow* window, int key)
 	case GLFW_KEY_L:
 		if (game->myCamera != nullptr)
 			game->myCamera->LookAt(game->myCamera->LookingAt());
+		break;
+
+		// CONTROLS:
+		// TODO: add in switching of effects.
+	case GLFW_KEY_1:
+	case GLFW_KEY_2:
+	case GLFW_KEY_3:
+	case GLFW_KEY_4:
+	case GLFW_KEY_5:
+	case GLFW_KEY_6:
+	case GLFW_KEY_7:
+	case GLFW_KEY_8:
+	case GLFW_KEY_9:
+	case GLFW_KEY_0:
 		break;
 	}
 }
@@ -434,6 +454,9 @@ void icg::ICG_MainScene::KeyReleased(GLFWwindow* window, int key)
 void icg::ICG_MainScene::LoadFromFile(std::string filePath)
 {
 	using namespace cherry;
+	
+	// gets the running game
+	const Game* game = Game::GetRunningGame();
 
 	// opening the file
 	std::ifstream file(filePath, std::ios::in);
@@ -445,9 +468,42 @@ void icg::ICG_MainScene::LoadFromFile(std::string filePath)
 		return;
 	}
 
+	// no game is running.
+	if (game == nullptr)
+		return;
+
+	// Read Variables
 	// a line from the file.
 	std::string line;
 	std::vector<std::string> comps; // components
+
+	// post-processing shader
+	cherry::Shader::Sptr ls_shader = std::make_shared<Shader>();
+
+	// light shader
+	ls_shader->Load(POST_VS, BLINN_PHONG_POST_MULTI);
+
+	// scene colour
+	RenderBufferDesc sceneColor = RenderBufferDesc();
+	sceneColor.ShaderReadable = true;
+	sceneColor.Attachment = RenderTargetAttachment::Color0;
+	sceneColor.Format = RenderTargetType::Color24; // loads with RGB
+
+	// scene depth
+	RenderBufferDesc sceneDepth = RenderBufferDesc();
+	sceneDepth.ShaderReadable = true;
+	sceneDepth.Attachment = RenderTargetAttachment::Depth;
+	sceneDepth.Format = RenderTargetType::Depth24;
+
+	// light buffer 
+	ls_fb = std::make_shared<FrameBuffer>(game->GetWindowWidth(), game->GetWindowHeight());
+	ls_fb->AddAttachment(sceneColor);
+	ls_fb->AddAttachment(sceneDepth);
+
+	// adding the post processing layer. 
+	layers.push_back(new PostLayer(ls_shader, ls_fb));
+	
+	// int index = 0;
 
 	while (std::getline(file, line))
 	{
@@ -457,15 +513,57 @@ void icg::ICG_MainScene::LoadFromFile(std::string filePath)
 
 		if (comps[0] == "Enabled") // amount of enabled lights
 		{
-			lights.resize(util::convertString<int>(comps[1]));
+			// TODO: is this needed?
+			// lights.resize(util::convertString<int>(comps[1]));
 		}
-		else if (util::isInt(comps[0])) // value of some sort.
+		else if (util::isInt(comps[0])) // number value of some sort.
 		{
-			// Number	PositionX	PositionY	PositionZ	ColorRed	ColorGreen	ColorBlue	Attenuation	Shininess
+			// Order
+			// Number/PositionX/PositionY/PositionZ/ColorRed/ColorGreen/ColorBlue/Attenuation/Shininess
+			// if (index < comps.size())
+			// {
+			PostLight* light = new PostLight(GetName(), ls_shader); // light
+
+			// index
+			light->index = util::convertString<int>((comps[0]));
+
+			// Position (x, y, z)
+			light->position.x = util::convertString<float>((comps[1]));
+			light->position.y = util::convertString<float>((comps[2]));
+			light->position.z = util::convertString<float>((comps[3]));
+
+			// Color (r, g, b)
+			light->color.r = util::convertString<float>((comps[4]));
+			light->color.g = util::convertString<float>((comps[5]));
+			light->color.b = util::convertString<float>((comps[6]));
+
+			// Attenuation
+			light->attenuation = util::convertString<float>((comps[7]));
+
+			// Shininess
+			light->shininess = util::convertString<float>((comps[8]));
+			// index++;
+			// }
+
+			// changing values in shader
+			light->Update(0);
+
+			// pushing back the light
+			lights.push_back(light);
 		}
 	}
 
 	file.close();
+}
+
+// sets whether to use the clear colour or not.
+void icg::ICG_MainScene::UseClearColor(bool useClear)
+{
+	if(DEFAULT_LIGHT_ENABLED && postLight != nullptr)
+		postLight->shader->SetUniform("a_UseClearColor", (int)useClear);
+
+	for(PostLight* pl : lights)
+		pl->shader->SetUniform("a_UseClearColor", (int)useClear);
 }
 
 // update
@@ -487,19 +585,11 @@ void icg::ICG_MainScene::Update(float deltaTime)
 		)
 	);
 	
-	if (true)
-	{
-		// new position from path
-		Vec3 newPos = path.Run(deltaTime);
-		postLight.position = glm::vec3(newPos.v.x, newPos.v.y, newPos.v.z);
+	// update post light
+	if (DEFAULT_LIGHT_ENABLED && postLight != nullptr)
+		postLight->Update(deltaTime);
 
-		// setting the light's values.
-		l_shader->SetUniform("a_LightPos", postLight.position);
-		l_shader->SetUniform("a_LightColor", postLight.color);
-		l_shader->SetUniform("a_LightAttenuation", postLight.attenuation);
-		l_shader->SetUniform("a_MatShininess", postLight.shininess);
-
-		// updating the light body.
-		lightBody->SetPosition(postLight.position);
-	}
+	// updates all lights
+	for (PostLight* light : lights)
+		light->Update(deltaTime);
 }
