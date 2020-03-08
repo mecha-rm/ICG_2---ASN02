@@ -6,12 +6,15 @@
 	* http://www.cplusplus.com/reference/vector/vector/resize/
 */
 
+// the maximum amount of post processed lights.
+#define MAX_POST_LIGHTS 25
 
 // Main Scene
 #include "ICG_MainScene.h"
 #include "cherry/Game.h"
 #include "cherry/objects/Primitives.h"
 #include "cherry/utils/Utils.h"
+#include <imgui\imgui.h>
 
 
 // constructor
@@ -33,8 +36,6 @@ void icg::ICG_MainScene::OnOpen()
 
 	// gets the window size
 	glm::ivec2 myWindowSize = game->GetWindowSize();
-	Material::Sptr objectMat; // material for objects
-	Material::Sptr volumeMat; // material for light volumes
 
 	// CAMERA
 	game->myClearColor = glm::vec4(0.74F, 0.251F, 0.9F, 1.0F);
@@ -73,50 +74,8 @@ void icg::ICG_MainScene::OnOpen()
 
 	game->SetSkyboxVisible(false);
 
-	// lights
-	Light* light = new Light(GetName(), Vec3(1.0F, 0.0F, -4.0F), Vec3(0.5F, 0.2F, 0.1F), Vec3(0.2F, 0.4F, 0.9F), 0.2, 0.2, 1.0F, 1.0F);
-	lightList->AddLight(light);
-
-	light = new Light(GetName(), Vec3(50.0F, -2.0F, -3.0F), Vec3(0.994F, 0.3F, 0.142F), Vec3(0.43F, 0.7F, 0.859F), 3, 0.01, 150.0F, 2.0F);
-	lightList->AddLight(light);
-
-
-	// making the material without lights.
-	// objectMat = lightList->GenerateMaterial(STATIC_VS, STATIC_FS);
-	objectMat = lightList->GenerateMaterial("res/shaders/shader.vs.glsl", "res/shaders/shader.fs.glsl");
-	volumeMat = lightList->GenerateMaterial("res/shaders/shader.vs.glsl", "res/shaders/shader.fs.glsl");
-
-	// primitive
-	Primitive* prim = nullptr;
-
-	prim = new PrimitiveUVSphere(5.0F, 12, 12, Vec4(0.3F, 1.0F, 0.7F, 1.0F));
-	prim->SetPosition(0.0F, 0.0F, 2.0F);
-	prim->CreateEntity(GetName(), objectMat);
-	objectList->AddObject(prim);
-
-
-	prim = new PrimitiveCube(7.0F, 2.0F, 4.5F, Vec4(0.9F, 0.3F, 0.54F, 1.0F));
-	prim->SetPosition(5.0F, 10.0F, 1.0F);
-	prim->CreateEntity(GetName(), objectMat);
-	objectList->AddObject(prim);
-
-	prim = new PrimitiveCylinder(2.0F, 15, 5, Vec4(0.111F, 0.421F, 0.231F, 1.0F));
-	prim->SetPosition(6.0F, 3.1842F, 9.0F);
-	prim->CreateEntity(GetName(), objectMat);
-	objectList->AddObject(prim);
-
-	prim = new Plane(500.0F, 500.0F, false, Vec4(0.4F, 0.4F, 0.4F, 1.0F));
-	prim->SetPosition(0, 0, 0);
-	prim->CreateEntity(GetName(), objectMat);
-	objectList->AddObject(prim);
-
-	// prim = new PrimitiveUVSphere(5.0F, 12, 12, Vec4(0.3F, 1.0F, 0.7F, 1.0F));
-	// prim->SetPosition(10.0F, -2.0F, 1.0F);
-	// prim->CreateEntity(GetName(), prim->GetMaterial());
-	// objectList->AddObject(prim);
-
-	// TODO: aesthetically pleasing scene
-	// TODO: moving or orientating scene.
+	// load in objects
+	LoadObjects();
 
 	/// FRAME BUFFERS
 	// frame buffer
@@ -170,15 +129,30 @@ void icg::ICG_MainScene::OnOpen()
 
 		// adding the layer
 		layers.push_back(new PostLayer(postLight->shader, ls_fb));
+		enabledLights = 1;
 	}
 	else
 	{
-		LoadFromFile("res/icg_2-asn02-light_info.txt");
-		UseClearColor(true);
+		// LoadFromFile("res/icg_2-asn02-light_info-00.txt");
+		// LoadFromFile("res/icg_2-asn02-light_info-01.txt");
+		LoadFromFile("res/icg_2-asn02-light_info-02.txt");
+		UseClearColor(true); 
 	}
+	 
+	if(false)
+	{
+		// FrameBuffer::Sptr fb = std::make_shared<FrameBuffer>(myWindowSize.x, myWindowSize.y);
+		// fb->AddAttachment(sceneColor);
+		// fb->AddAttachment(sceneDepth);
 
+		// cel shader
+		Shader::Sptr celShader = std::make_shared<Shader>();
+		celShader->Load(POST_VS, "res/shaders/post/toon-cel-post.fs.glsl");
 
-	// post-> 
+		// layers 
+		layers.push_back(new PostLayer(celShader, ls_fb));
+	}
+	// post->  
 
 	// adds a post-processing 
 	// layers.push_back(new PostLayer(POST_VS, "res/shaders/post/invert.fs.glsl"));
@@ -334,15 +308,37 @@ void icg::ICG_MainScene::KeyPressed(GLFWwindow* window, int key)
 			game->myCamera->LookAt(game->myCamera->LookingAt());
 		break;
 
+	// Assignment Controls
+		// increments the light count.
+	case GLFW_KEY_EQUAL:
+		EnableLight();
+		break;
+		// decrements the light count. 
+	case GLFW_KEY_MINUS:
+		DisableLight();
+		break;
 		// CONTROLS:
 		// TODO: add in switching of effects.
-	case GLFW_KEY_1:
-	case GLFW_KEY_2:
+
+	case GLFW_KEY_1: // one light only.
+		key1 = true;
+		break;
+
+	case GLFW_KEY_2: // view light volumes.
+		SetLightVolumesVisible(!volumesVisible);
+		break;
+
 	case GLFW_KEY_3:
 	case GLFW_KEY_4:
 	case GLFW_KEY_5:
 	case GLFW_KEY_6:
-	case GLFW_KEY_7:
+		break;
+
+
+	case GLFW_KEY_7: // cycles through light volumes
+		CycleLightVolumes();
+		break;
+
 	case GLFW_KEY_8:
 	case GLFW_KEY_9:
 	case GLFW_KEY_0:
@@ -469,6 +465,203 @@ void icg::ICG_MainScene::KeyReleased(GLFWwindow* window, int key)
 	}
 }
 
+// imgui draw
+void icg::ICG_MainScene::DrawGui(float deltaTime)
+{
+	using namespace cherry;
+
+	Game* game = Game::GetRunningGame();
+
+	glm::vec4& myClearColor = game->myClearColor; // clear color
+	GLFWwindow* myWindow = game->GetWindow(); // window 
+
+	
+	char myWindowTitle[WINDOW_TITLE_CHAR_MAX]; // window title (char array)
+	std::string wtStr = game->GetWindowTitle(); // the window title (as a string)
+
+	// fills the rest of the string with the null termination character.
+	wtStr.resize(WINDOW_TITLE_CHAR_MAX, '\0');
+
+	// the game's camera
+	Camera::Sptr& myCamera = game->myCamera;
+
+	// temporary integer
+	int tempInt = 0;
+
+	// copying the string's data into the char array
+	memcpy(myWindowTitle, wtStr.c_str(), wtStr.length());
+
+	// Open a new ImGui window
+	ImGui::Begin("Colour Picker");
+
+	// Draw widgets here
+	// ImGui::SliderFloat4("Color", &myClearColor.x, 0, 1); // Original
+	ImGui::ColorPicker4("Color", &myClearColor.x); // new version
+	// ImGui::SetWindowSize(ImVec2(500.0F, 500.0F)); // window size for ImGUI Colour Picker (perament)
+	// ImGui::SetNextWindowCollapsed(false);
+	// ImGui::SetNextWindowPos(ImVec2(-225.0F, 1.0F));
+	ImGui::SetNextWindowSize(ImVec2(500.0F, 500.0F)); // window size for ImGUI ColorPicker (variable)
+	if (ImGui::InputText("Title", myWindowTitle, 31))
+	{
+		glfwSetWindowTitle(myWindow, myWindowTitle);
+	}
+
+	// text for enabled lights
+	tempInt = enabledLights;
+	if (ImGui::InputInt("Enabled Lights", &tempInt))
+	{
+		tempInt = glm::clamp(tempInt, 0, MAX_POST_LIGHTS);
+		SetEnabledLights(tempInt);
+	}
+
+	// ImGui::BeginTabBar("Lights");
+	// 
+	// if (false)
+	// {
+	// 	int light = 0;
+	// 	float coord = 0;
+	// 	
+	// 	glm::vec2 posLimitsX{ -250.0F, 250.0F };
+	// 	glm::vec2 posLimitsY{ -250.0F, 250.0F };
+	// 	glm::vec2 posLimitsZ{  0.0F, 10.0F };
+	// 
+	// 	for (int i = 0; i < lights.size() && i < MAX_POST_LIGHTS; i++)
+	// 	{
+	// 		ImGui::BeginTabItem(std::string("Light " + std::to_string(i)).c_str());
+	// 
+	// 		// changing light positions
+	// 		if (ImGui::InputFloat("X", &coord))
+	// 			lights[i]->position.x = coord;
+	// 
+	// 		if (ImGui::InputFloat("Y", &coord))
+	// 			lights[i]->position.x = coord;
+	// 
+	// 		if (ImGui::InputFloat("Z", &coord))
+	// 			lights[i]->position.x = coord;
+	// 		
+	// 		// randomizes position.
+	// 		if (ImGui::Button("Randomize"))
+	// 		{
+	// 			// t is equal to a random value between 0 and 1000 dividied by 1000. It is within the range [0, 1].
+	// 			float t = (float)(rand() % 1001) / 1000.0F;
+	// 			
+	// 			lights[0]->position = glm::vec3(
+	// 				glm::mix(posLimitsX.x, posLimitsX.y, t),
+	// 				glm::mix(posLimitsY.x, posLimitsY.y, t),
+	// 				glm::mix(posLimitsZ.x, posLimitsZ.y, t)
+	// 			);
+	// 		}
+	// 	}
+	// 
+	// }
+	// ImGui::EndTabBar();
+
+
+	if (ImGui::Button("Apply")) // adding another button, which allows for the application of the window title.
+	{
+		glfwSetWindowTitle(myWindow, myWindowTitle);
+	}
+	if (ImGui::Button("Wireframe/Fill Toggle"))
+	{
+		for (cherry::Object* obj : objectList->objects)
+			obj->SetWireframeMode();
+	}
+
+	// changing the camera mode
+	std::string camMode = myCamera->InPerspectiveMode() ? "Perspective" : "Orthographic";
+	ImGui::InputText((std::string("CAMERA MODE (\'SPACE\')") + camMode).c_str(), myWindowTitle, WINDOW_TITLE_CHAR_MAX);
+
+	ImGui::End();
+}
+
+// activates a light
+void icg::ICG_MainScene::EnableLight() { LightActivation(true); }
+
+// deactivates a light
+void icg::ICG_MainScene::DisableLight() { LightActivation(false); }
+
+// sets the amount of enabled lights.
+void icg::ICG_MainScene::SetEnabledLights(int enabled)
+{
+	if (enabled < 0 || enabled > MAX_POST_LIGHTS)
+		return;
+	
+	// only total amount of lights can be used.
+	enabled = glm::clamp(enabled, 0, (int)lights.size());
+
+	// if lights are being enabled
+	if (enabled > enabledLights)
+	{
+		// enabling the requested amount of lights
+		while(enabledLights < enabled)
+			LightActivation(true);
+
+	}
+	else if (enabled < enabledLights) // lights are being disabled
+	{
+		// disabling lights the requested amount of lights
+		while (enabledLights > enabled)
+			LightActivation(false);
+	}
+}
+
+// returns 'true' if the volumes are visible.
+bool icg::ICG_MainScene::GetLightVolumesVisible() const { return volumesVisible; }
+
+// sets if the light volumes should be visible or not.
+void icg::ICG_MainScene::SetLightVolumesVisible(bool visible)
+{
+	// turning on the default light.
+	if (DEFAULT_LIGHT_ENABLED && visible)
+	{
+		postLight->SetVisible(visible);
+	}
+	else
+	{
+		// enabling or disabling all lights in the light lsit.
+		for (PostLight* pl : lights)
+			pl->SetVisible(visible);
+	}
+
+	volumesVisible = visible;
+
+}
+
+// cycles through light volume types.
+void icg::ICG_MainScene::CycleLightVolumes()
+{
+	const int COUNT = PostLight::GetVolumeTypeCount(); // amount of light types
+
+	if (DEFAULT_LIGHT_ENABLED && postLight != nullptr)
+	{
+		// moving to a new type
+		int index = postLight->GetVolumeType();
+		index++;
+
+		// looping back around.
+		if (index >= COUNT)
+			index = 0;
+
+		postLight->SetVolumeType(index);
+	}
+	else
+	{
+		// going through all the lights
+		for (int i = 0; i < lights.size(); i++)
+		{
+			// moving to a new type
+			int index = lights[i]->GetVolumeType();
+			index++;
+
+			// looping back around.
+			if (index >= COUNT)
+				index = 0;
+
+			lights[i]->SetVolumeType(index);
+		}
+	}
+}
+
 // loads the lights from a file
 void icg::ICG_MainScene::LoadFromFile(std::string filePath)
 {
@@ -543,7 +736,7 @@ void icg::ICG_MainScene::LoadFromFile(std::string filePath)
 		else if (util::isInt(comps[0])) // number value of some sort.
 		{
 			// Order
-			// Number/PositionX/PositionY/PositionZ/ColorRed/ColorGreen/ColorBlue/Attenuation/Shininess 
+			// Number/Type/PositionX/PositionY/PositionZ/ColorRed/ColorGreen/ColorBlue/Attenuation/Shininess 
 	
 			// passing in the scene name, the material, and the index.
 			PostLight* light = new PostLight(GetName(), ls_material, util::convertString<int>((comps[0]))); // light
@@ -551,22 +744,25 @@ void icg::ICG_MainScene::LoadFromFile(std::string filePath)
 			// index
 			// light->index = util::convertString<int>((comps[0])); 
 
+			// Type (1 = sphere, 2 = cube, 3 = cone)
+			light->SetVolumeType(util::convertString<int>((comps[1])) - 1);
+
 			// Position (x, y, z)
-			light->position.x = util::convertString<float>((comps[1]));
-			light->position.y = util::convertString<float>((comps[2]));
-			light->position.z = util::convertString<float>((comps[3]));
+			light->position.x = util::convertString<float>((comps[2]));
+			light->position.y = util::convertString<float>((comps[3]));
+			light->position.z = util::convertString<float>((comps[4]));
 
 
 			// Color (r, g, b)
-			light->color.r = util::convertString<float>((comps[4]));
-			light->color.g = util::convertString<float>((comps[5]));
-			light->color.b = util::convertString<float>((comps[6]));
+			light->color.r = util::convertString<float>((comps[5]));
+			light->color.g = util::convertString<float>((comps[6]));
+			light->color.b = util::convertString<float>((comps[7]));
 
 			// Attenuation
-			light->attenuation = util::convertString<float>((comps[7]));
+			light->attenuation = util::convertString<float>((comps[8]));
 
 			// Shininess
-			light->shininess = util::convertString<float>((comps[8]));
+			light->shininess = util::convertString<float>((comps[9]));
 			// index++;
 			// }
 
@@ -580,6 +776,110 @@ void icg::ICG_MainScene::LoadFromFile(std::string filePath)
 	}
 
 	file.close();
+
+	// enabled lights
+	enabledLights = lights.size();
+}
+
+// loads objects into the scene.
+void icg::ICG_MainScene::LoadObjects()
+{
+	using namespace cherry;
+
+	// lights
+	// this light doesn't actually do anything.
+	Light* light = new Light(GetName(), Vec3(1.0F, 0.0F, -4.0F), Vec3(0.5F, 0.2F, 0.1F), Vec3(0.2F, 0.4F, 0.9F), 0.2, 0.2, 1.0F, 1.0F);
+	lightList->AddLight(light);
+
+
+	// objectMat = lightList->GenerateMaterial(STATIC_VS, STATIC_FS);
+	Material::Sptr objectMat = lightList->GenerateMaterial("res/shaders/shader.vs.glsl", "res/shaders/shader.fs.glsl");
+	// volumeMat = lightList->GenerateMaterial("res/shaders/shader.vs.glsl", "res/shaders/shader.fs.glsl");
+
+	// TODO: aesthetically pleasing scene
+	// TODO: moving or orientating scene.
+
+	// primitive
+	Primitive* prim = nullptr;
+
+	prim = new PrimitiveUVSphere(5.0F, 12, 12, Vec4(0.3F, 1.0F, 0.7F, 1.0F));
+	prim->SetPosition(0.0F, 0.0F, 2.0F);
+	prim->CreateEntity(GetName(), objectMat);
+	objectList->AddObject(prim);
+
+
+	prim = new PrimitiveCube(7.0F, 2.0F, 4.5F, Vec4(0.9F, 0.3F, 0.54F, 1.0F));
+	prim->SetPosition(5.0F, 10.0F, 1.0F);
+	prim->CreateEntity(GetName(), objectMat);
+	objectList->AddObject(prim);
+
+	prim = new PrimitiveCylinder(2.0F, 15, 5, Vec4(0.111F, 0.421F, 0.231F, 1.0F));
+	prim->SetPosition(6.0F, 3.1842F, 9.0F);
+	prim->CreateEntity(GetName(), objectMat);
+	objectList->AddObject(prim);
+
+	prim = new PrimitiveDiamond(2.5F, 10.0F, 8, 0.5F, Vec4(0.2121F, 0.121F, 0.431F, 1.0F));
+	prim->SetPosition(26.0F, -13.1842F, 9.0F);
+	prim->CreateEntity(GetName(), objectMat);
+	objectList->AddObject(prim);
+
+	prim = new PrimitiveCapsule(23.0F, 19.0F, 12, 10, Vec4(0.9221F, 0.521F, 0.1431F, 1.0F));
+	prim->SetPosition(26.0F, -23.1842F, 40.0F);
+	prim->CreateEntity(GetName(), objectMat);
+	prim->Rotate(Vec3(45.0F, 0.0F, 0.0F), true);
+	objectList->AddObject(prim);
+
+
+
+	// platform
+	prim = new Plane(500.0F, 500.0F, false, Vec4(0.4F, 0.4F, 0.4F, 1.0F));
+	prim->SetPosition(0, 0, -5);
+	prim->CreateEntity(GetName(), objectMat);
+	objectList->AddObject(prim);
+
+
+
+	// prim = new PrimitiveUVSphere(5.0F, 12, 12, Vec4(0.3F, 1.0F, 0.7F, 1.0F));
+	// prim->SetPosition(10.0F, -2.0F, 1.0F);
+	// prim->CreateEntity(GetName(), prim->GetMaterial());
+	// objectList->AddObject(prim);
+}
+
+// activates (or deactivates) a light
+void icg::ICG_MainScene::LightActivation(bool activate)
+{
+	// using the default light
+	if (DEFAULT_LIGHT_ENABLED && postLight != nullptr)
+	{
+		enabledLights = 1;
+		return;
+	}
+
+	// no lights in the list.
+	if (lights.size() == 0)
+		return;
+
+	// if all the lights are enabled and another light is trying to be enabled, nothing happens.
+	// also, if another light is being disabled, but all lights are already disabled, then nothing happens.
+	if ((activate == true && enabledLights + 1 > lights.size()) || (activate == false && enabledLights - 1 < 0))
+		return;
+
+	// activate
+	switch (activate)
+	{
+	case true: // showing a light
+		lights[enabledLights]->SetVisible(true);
+		enabledLights++;
+		break;
+
+	case false: // hiding a light
+	default:
+		enabledLights--;
+		lights[enabledLights]->SetVisible(false);
+		break;
+	}
+
+	lights[0]->shader->SetUniform("a_EnabledLights", enabledLights);
 }
 
 // sets whether to use the clear colour or not.
@@ -588,8 +888,8 @@ void icg::ICG_MainScene::UseClearColor(bool useClear)
 	if(DEFAULT_LIGHT_ENABLED && postLight != nullptr)
 		postLight->shader->SetUniform("a_UseClearColor", (int)useClear);
 
-	for(PostLight* pl : lights)
-		pl->shader->SetUniform("a_UseClearColor", (int)useClear);
+	if (lights.size() > 0)
+		lights[0]->shader->SetUniform("a_UseClearColor", (int)useClear);
 }
 
 // update
@@ -610,12 +910,22 @@ void icg::ICG_MainScene::Update(float deltaTime)
 			glm::radians(r_Dir[2] * r_Inc * deltaTime)
 		)
 	);
-	
+
+
+
 	// update post light
 	if (DEFAULT_LIGHT_ENABLED && postLight != nullptr)
 		postLight->Update(deltaTime);
 
-	// updates all lights
+	
+	// making only the first body visible
+	if (key1 && lights.size() != 0)
+	{
+		SetEnabledLights(1);
+	}
+	// updating the lights
 	for (PostLight* light : lights)
 		light->Update(deltaTime);
+
+	key1 = false;
 }

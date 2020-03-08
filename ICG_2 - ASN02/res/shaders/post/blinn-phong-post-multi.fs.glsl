@@ -5,13 +5,14 @@ layout (location = 1) in vec3 inNormal;
 layout (location = 2) in vec2 inScreenCoords;
 layout (location = 3) in vec2 inUV;
 
-layout(location = 0) out vec4 outColor;
+layout (location = 0) out vec4 outColor;
 
 layout(binding = 1) uniform sampler2D s_CameraDepth; // Camera's depth buffer
 layout(binding = 2) uniform sampler2D s_GNormal;     // The normal buffer
 
 // The inverse of the camera's view-project matrix (clip->world)
 uniform mat4 a_ViewProjectionInv;
+
 // The position of the camera, in world space
 uniform vec3 a_CameraPos;
 

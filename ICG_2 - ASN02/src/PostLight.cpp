@@ -1,6 +1,8 @@
 #include "PostLight.h"
 #include "cherry/Game.h"
 
+const int icg::PostLight::BODY_COUNT = 3;
+
 // default constructor.
 icg::PostLight::PostLight(std::string sceneName)
 	: PostLight(sceneName, std::make_shared<cherry::Shader>(), -1)
@@ -93,6 +95,12 @@ cherry::PrimitiveCone* icg::PostLight::GetPrimitiveCone() const
 	return (cherry::PrimitiveCone*)bodies[2];
 }
 
+// gets the amount of volume types
+int icg::PostLight::GetVolumeTypeCount() { return BODY_COUNT; }
+
+// gets the volume type
+int icg::PostLight::GetVolumeType() const { return index; }
+
 // sets the volume type
 void icg::PostLight::SetVolumeType(unsigned int index)
 {
@@ -107,20 +115,25 @@ void icg::PostLight::SetVolumeType(unsigned int index)
 		bodies[0]->SetVisible(true);
 		bodies[1]->SetVisible(false);
 		bodies[2]->SetVisible(false);
+		activeVolume = sphere;
 		break;
 
 	case 1: // cube enabled
 		bodies[0]->SetVisible(false);
 		bodies[1]->SetVisible(true);
 		bodies[2]->SetVisible(false);
+		activeVolume = cube;
 		break;
 
 	case 2: // cone enabled
 		bodies[0]->SetVisible(false);
 		bodies[1]->SetVisible(false);
 		bodies[2]->SetVisible(true);
+		activeVolume = cone;
 		break;
 	}
+
+	this->index = index;
 }
 
 // gets the alpha value of the light volumes.
@@ -144,6 +157,15 @@ void icg::PostLight::SetAlpha(float alpha)
 	bodies[0]->SetAlpha(alpha);
 	bodies[1]->SetAlpha(alpha);
 	bodies[2]->SetAlpha(alpha);
+}
+
+// returns 'true' if one of the volumes are visible.
+bool icg::PostLight::IsVisible() const
+{
+	if (bodiesCreated)
+		return (bodies[0]->IsVisible() || bodies[1]->IsVisible() || bodies[2]->IsVisible());
+	else
+		return false;
 }
 
 // creates the bodies
@@ -205,8 +227,18 @@ void icg::PostLight::CreateBodies(const std::string sceneName)
 
 	// the bodies have been created.
 	bodiesCreated = true;
+	activeVolume = sphere; // sphere is active
 }
 
+// sets visibility.
+void icg::PostLight::SetVisible(bool visible)
+{
+	// if the light volumes exist, there is a set active volume.
+	if (bodiesCreated && activeVolume > 0)
+	{
+		bodies[activeVolume - 1]->SetVisible(visible);
+	}
+}
 
 // update
 void icg::PostLight::Update(float deltaTime)

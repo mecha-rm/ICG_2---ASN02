@@ -41,11 +41,39 @@ namespace icg
 		// called when a key has been released
 		void KeyReleased(GLFWwindow* window, int key) override;
 
+		// imgui draw
+		void DrawGui(float deltaTime) override;
+
+		// activates a light
+		void EnableLight();
+
+		// deactivates a light
+		void DisableLight();
+
+		// sets the amount of enabled lights.
+		void SetEnabledLights(int enabled);
+
+		// returns 'true' if light volumes are visible.
+		bool GetLightVolumesVisible() const;
+
+		// sets whether the light volumes are visible or not.
+		void SetLightVolumesVisible(bool visible);
+
+		// cycles light volume types
+		void CycleLightVolumes();
+
+		// update
 		void Update(float deltaTime) override;
 	
 	private:
 		// loads the lights from a file
 		void LoadFromFile(std::string filePath);
+
+		// loads the objects for the scene.
+		void LoadObjects();
+
+		// activates (or deactivates) a light.
+		void LightActivation(bool activate);
 
 		// if 'true', then the clear colour gets used.
 		void UseClearColor(bool useClear);
@@ -78,6 +106,14 @@ namespace icg
 		// if 'true', the default light is generated.
 		const bool DEFAULT_LIGHT_ENABLED = false;
 		
+		// the amount of enabled lights
+		int enabledLights = 0;
+
+		// key related variables
+		bool key1 = false; // turns off all but the first light.
+
+		// saves whether the volumes are currently visible or not.
+		bool volumesVisible = true;
 	protected:
 
 	};

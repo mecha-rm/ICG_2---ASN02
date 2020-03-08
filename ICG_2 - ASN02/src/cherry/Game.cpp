@@ -173,6 +173,34 @@ cherry::Game::Game(const char windowTitle[WINDOW_TITLE_CHAR_MAX], float _width, 
 // destructor
 cherry::Game::~Game() { }
 
+// returns the window title
+const std::string cherry::Game::GetWindowTitle() const
+{
+	// the window title
+	std::string windowTitle = "";
+
+	// putting the characters into the string
+	for (int i = 0; i < WINDOW_TITLE_CHAR_MAX; i++)
+	{
+		// if a termination character is encountered, then the string is finished.
+		// all unused indexes in the myWindowTitle array default to '\0' (null termination character)
+		if (myWindowTitle[i] == '\0')
+			break;
+		
+		// puts the character onto the string.
+		windowTitle.push_back(myWindowTitle[i]);
+	}
+
+	// returns the string.
+	return windowTitle;
+}
+
+// gets the length of the window title.
+int cherry::Game::GetWindowTitleLength() const { return GetWindowTitle().size(); }
+
+// gets the GLFW window.
+GLFWwindow* cherry::Game::GetWindow() const { return myWindow; }
+
 // gets the window width
 int cherry::Game::GetWindowWidth() const { return myWindowSize.x; }
 
@@ -1126,45 +1154,50 @@ void cherry::Game::Draw(float deltaTime) {
 		// renders the scene
 		__RenderScene(myCamera);
 	}
-
+ 
 	// renders all the other cameras
 	for (Camera::Sptr cam : exCameras)
 		__RenderScene(cam);
 }
 
+// drawing ImGui
 void cherry::Game::DrawGui(float deltaTime) {
+	Scene* scene = CurrentScene();
 
-	// Open a new ImGui window
-	ImGui::Begin("Colour Picker");
+	// now calls a scene for ImGui
+	if (scene != nullptr)
+		scene->DrawGui(deltaTime);
 
-	// Draw widgets here
-	// ImGui::SliderFloat4("Color", &myClearColor.x, 0, 1); // Original
-	ImGui::ColorPicker4("Color", &myClearColor.x); // new version
-	// ImGui::SetWindowSize(ImVec2(500.0F, 500.0F)); // window size for ImGUI Colour Picker (perament)
-	// ImGui::SetNextWindowCollapsed(false);
-	// ImGui::SetNextWindowPos(ImVec2(-225.0F, 1.0F));
-	ImGui::SetNextWindowSize(ImVec2(500.0F, 500.0F)); // window size for ImGUI ColorPicker (variable)
-	if (ImGui::InputText("Title", myWindowTitle, 31))
-	{
-		glfwSetWindowTitle(myWindow, myWindowTitle);
-	}
-
-	if (ImGui::Button("Apply")) // adding another button, which allows for the application of the window title.
-	{
-		glfwSetWindowTitle(myWindow, myWindowTitle);
-	}
-	if (ImGui::Button("Wireframe/Fill Toggle"))
-	{
-		for (cherry::Object* obj : objectList->objects)
-			obj->SetWireframeMode();
-	}
-
-	// changing the camera mode
-	std::string camMode = myCamera->InPerspectiveMode() ? "Perspective" : "Orthographic";
-	ImGui::InputText((std::string("CAMERA MODE (\'SPACE\')") + camMode).c_str(), myWindowTitle, WINDOW_TITLE_CHAR_MAX);
-
-	ImGui::End();
-
+	// // Open a new ImGui window
+	// ImGui::Begin("Colour Picker");
+	// 
+	// // Draw widgets here
+	// // ImGui::SliderFloat4("Color", &myClearColor.x, 0, 1); // Original
+	// ImGui::ColorPicker4("Color", &myClearColor.x); // new version
+	// // ImGui::SetWindowSize(ImVec2(500.0F, 500.0F)); // window size for ImGUI Colour Picker (perament)
+	// // ImGui::SetNextWindowCollapsed(false);
+	// // ImGui::SetNextWindowPos(ImVec2(-225.0F, 1.0F));
+	// ImGui::SetNextWindowSize(ImVec2(500.0F, 500.0F)); // window size for ImGUI ColorPicker (variable)
+	// if (ImGui::InputText("Title", myWindowTitle, 31))
+	// {
+	// 	glfwSetWindowTitle(myWindow, myWindowTitle);
+	// }
+	// 
+	// if (ImGui::Button("Apply")) // adding another button, which allows for the application of the window title.
+	// {
+	// 	glfwSetWindowTitle(myWindow, myWindowTitle);
+	// }
+	// if (ImGui::Button("Wireframe/Fill Toggle"))
+	// {
+	// 	for (cherry::Object* obj : objectList->objects)
+	// 		obj->SetWireframeMode();
+	// }
+	// 
+	// // changing the camera mode
+	// std::string camMode = myCamera->InPerspectiveMode() ? "Perspective" : "Orthographic";
+	// ImGui::InputText((std::string("CAMERA MODE (\'SPACE\')") + camMode).c_str(), myWindowTitle, WINDOW_TITLE_CHAR_MAX);
+	// 
+	// ImGui::End();
 }
 
 // renders the scene
@@ -1398,6 +1431,7 @@ void cherry::Game::__RenderScene(glm::ivec4 viewport, const Camera::Sptr& camera
 		
 	}
 
+	// making the bound shader null for the post draw.
 	boundShader = nullptr;
 
 	// post-post processing renders

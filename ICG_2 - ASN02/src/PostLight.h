@@ -47,6 +47,12 @@ namespace icg
 		// gets the cone body
 		cherry::PrimitiveCone* GetPrimitiveCone() const;
 
+		// gets the amount of volume types;
+		static int GetVolumeTypeCount();
+
+		// gets the volume index.
+		int GetVolumeType() const;
+
 		// sets the volume type being used.
 		// 0 - sphere, 1 - cube, 2 - cone
 		void SetVolumeType(unsigned int index);
@@ -57,6 +63,12 @@ namespace icg
 
 		// sets the alpha of the volumes for this light.
 		void SetAlpha(float alpha);
+
+		// returns 'true' if a volume is visible.
+		bool IsVisible() const;
+
+		// turns on (or off) volume visibility
+		void SetVisible(bool visible);
 
 		// updates the light, updating the values in the shader for the light.
 		// this also runs the path if there is one.
@@ -103,7 +115,7 @@ namespace icg
 		float pvtShininess = 0.0F;
 
 		// the amount of bodies avaialble
-		const int BODY_COUNT = 3;
+		static const int BODY_COUNT;
 
 		/*
 		 * 	the three bodies that can be swapped between.
@@ -113,6 +125,17 @@ namespace icg
 		*/
 		cherry::Primitive* bodies[3]{ nullptr, nullptr, nullptr };
 		
+		// enum for the active volume
+		enum volume{
+			none = 0, 
+			sphere = 1,
+			cube = 2,
+			cone = 3
+		};
+		
+		// the active volume
+		volume activeVolume = none;
+
 		// if 'true', then the bodies have been defined.
 		bool bodiesCreated = false;
 
