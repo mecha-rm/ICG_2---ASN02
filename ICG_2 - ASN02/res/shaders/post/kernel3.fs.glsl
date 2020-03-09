@@ -43,7 +43,8 @@ void main() {
 	pixelPos.x = round(xImageRes.x * inUV.x); 
 	pixelPos.y = round(xImageRes.y * inUV.y); 
 
-	
+	vec4 ogPixelClr = texture(xImage, inUV);
+
 	// getting the pixels
 	// top row
 //	pxArr[0][0] = texture(xImage, vec2((pixelPos.x - 1) / xImageRes.x, (pixelPos.y + 1) / xImageRes.y)); // left 1, up 1
@@ -98,5 +99,9 @@ void main() {
 		)
 	);
 
-	outColor = vec4(newColor.rgb, inColor.a);
+	newColor = mix(ogPixelClr, newColor, 0.001);
+	newColor.a = 0.2F;
+
+	// Currently this just makes a pixelated mess.
+	outColor = vec4(inColor.rgb * newColor.rgb, inColor.a * newColor.a);
 }

@@ -1,5 +1,19 @@
+/*
+ * Name: Bonus Fruit
+	- Kennedy Adams	(100632983)
+	- Jonah Griffin	(100702748)
+	- Nathan Tuck	(100708651)
+	- Stephane Gagnon (100694227)
+	- Roderick "R.J." Montague (100701758)
+ * Date: 03/08/2020
+ * Description: post processing light class.
+ * References:
+	* http://www.cplusplus.com/reference/vector/vector/resize/
+*/
+
 #include "PostLight.h"
 #include "cherry/Game.h"
+#include "ICG_MainScene.h"
 
 const int icg::PostLight::BODY_COUNT = 3;
 
@@ -255,7 +269,7 @@ void icg::PostLight::Update(float deltaTime)
 	// changing position
 	if (pvtPosition != position)
 	{
-		(index >= 0) ?
+		(!ICG_MainScene::DEFAULT_LIGHT_ENABLED) ?
 			shader->SetUniform(("a_Lights[" + std::to_string(index) + "].position").c_str(), position) : 
 			shader->SetUniform("a_LightPos", position);
 
@@ -269,21 +283,21 @@ void icg::PostLight::Update(float deltaTime)
 			bodies[2]->SetPosition(position);
 		}
 	}
-
+	
 	// changing color
 	if (pvtColor != color)
 	{
-		(index >= 0) ?
+		(!ICG_MainScene::DEFAULT_LIGHT_ENABLED) ?
 			shader->SetUniform(("a_Lights[" + std::to_string(index) + "].color").c_str(), color) :
 			shader->SetUniform("a_Color", color);
 
 		pvtColor = color;
 	}
-
+	 
 	// changing attenuation
 	if (pvtAttenuation != attenuation)
 	{
-		(index >= 0) ?
+		(!ICG_MainScene::DEFAULT_LIGHT_ENABLED) ?
 			shader->SetUniform(("a_Lights[" + std::to_string(index) + "].attenuation").c_str(), attenuation) :
 			shader->SetUniform("a_Attenuation", color);
 
@@ -293,7 +307,7 @@ void icg::PostLight::Update(float deltaTime)
 	// changing shininess
 	if (pvtShininess != shininess)
 	{
-		(index >= 0) ?
+		(!ICG_MainScene::DEFAULT_LIGHT_ENABLED) ?
 			shader->SetUniform(("a_Lights[" + std::to_string(index) + "].shininess").c_str(), shininess) :
 			shader->SetUniform("a_MatShininess", shininess);
 	

@@ -1,7 +1,12 @@
 /*
- * Name:
- * Date:
- * Description:
+ * Name: Bonus Fruit
+	- Kennedy Adams	(100632983)
+	- Jonah Griffin	(100702748)
+	- Nathan Tuck	(100708651)
+	- Stephane Gagnon (100694227)
+	- Roderick "R.J." Montague (100701758)
+ * Date: 03/08/2020
+ * Description: main scene
  * References:
 	* http://www.cplusplus.com/reference/vector/vector/resize/
 */
@@ -17,6 +22,9 @@
 #include <imgui\imgui.h>
 
 
+// if 'true', then the defaut light is enabled
+const bool icg::ICG_MainScene::DEFAULT_LIGHT_ENABLED = false;
+
 // constructor
 icg::ICG_MainScene::ICG_MainScene(const std::string a_Name)
 	: GameplayScene(a_Name)
@@ -30,6 +38,7 @@ void icg::ICG_MainScene::OnOpen()
 	cherry::GameplayScene::OnOpen();
 
 	Game* const game = Game::GetRunningGame();
+	bool usePaths = false;
 
 	if (game == nullptr)
 		return;
@@ -47,15 +56,15 @@ void icg::ICG_MainScene::OnOpen()
 	game->myCameraEnabled = true;
 
 	myCamera->clearColor = game->myClearColor; // setting the clear colour
-	myCamera->SetPosition(glm::vec3(-20, 12, 50));
+	myCamera->SetPosition(glm::vec3(-40, 22, 150));
 	myCamera->LookAt(glm::vec3(0));
 
 
 	// sets the camera to perspective mode for the m_Scene.
-	myCamera->SetPerspectiveMode(glm::radians(45.0f), 1.0f, 0.01f, 1000.0f);
+	myCamera->SetPerspectiveMode(glm::radians(45.0f), 1.0f, 0.001f, 10000.0f);
 
 	// sets the orthographic mode values. False is passed so that the camera starts in perspective mode.
-	myCamera->SetOrthographicMode(-5.0f, 5.0f, -5.0f, 5.0f, 0.0f, 100.0f, false);
+	myCamera->SetOrthographicMode(-5.0f, 5.0f, -5.0f, 5.0f, 0.001f, 10000.0f, false);
 	myCamera->targetOffset = cherry::Vec3(0, 5, 12);
 
 
@@ -97,7 +106,6 @@ void icg::ICG_MainScene::OnOpen()
 	fb->AddAttachment(sceneColor);
 	fb->AddAttachment(sceneDepth);
 
-	// fb->AddAttachment()
 	// registry frame buffer
 	Registry().ctx_or_set<FrameBuffer::Sptr>(fb);
 
@@ -128,76 +136,214 @@ void icg::ICG_MainScene::OnOpen()
 		ls_fb->AddAttachment(sceneDepth);
 
 		// adding the layer
-		layers.push_back(new PostLayer(postLight->shader, ls_fb));
+		lightLayer = new PostLayer(postLight->shader, ls_fb);
+		layers.push_back(lightLayer);
 		enabledLights = 1;
 	}
 	else
 	{
 		// LoadFromFile("res/icg_2-asn02-light_info-00.txt");
 		// LoadFromFile("res/icg_2-asn02-light_info-01.txt");
-		LoadFromFile("res/icg_2-asn02-light_info-02.txt");
-		UseClearColor(true); 
+		// LoadFromFile("res/icg_2-asn02-light_info-02.txt");
+		// LoadFromFile("res/icg_2-asn02-light_info-03.txt");
+		LoadFromFile("res/icg_2-asn02-light_info-04.txt");
+		// LoadFromFile("res/icg_2-asn02-light_info-05.txt");
+		UseClearColor(true);
+
+
 	}
-	 
-	if(false)
+
+	// PostLayer* layer = new PostLayer(POST_VS, "res/shaders/post/normal-buffer.fs.glsl");
+	depthLayer = new PostLayer(POST_VS, "res/shaders/post/depth-buffer.fs.glsl");
+	normalLayer = new PostLayer(POST_VS, "res/shaders/post/normal-buffer.fs.glsl");
+	
+	// effect layer 1
 	{
-		// FrameBuffer::Sptr fb = std::make_shared<FrameBuffer>(myWindowSize.x, myWindowSize.y);
-		// fb->AddAttachment(sceneColor);
-		// fb->AddAttachment(sceneDepth);
+		Shader::Sptr effectShader = std::make_shared<Shader>();
+		effectShader->Load(POST_VS, "res/shaders/post/toon-cel-post.fs.glsl");
 
-		// cel shader
-		Shader::Sptr celShader = std::make_shared<Shader>();
-		celShader->Load(POST_VS, "res/shaders/post/toon-cel-post.fs.glsl");
+		// scene colour 
+		RenderBufferDesc ecDesc = RenderBufferDesc();
+		ecDesc.ShaderReadable = true;
+		ecDesc.Attachment = RenderTargetAttachment::Color0;
+		ecDesc.Format = RenderTargetType::Color24; // loads with RGB
 
-		// layers 
-		layers.push_back(new PostLayer(celShader, ls_fb));
+		// scene depth
+		RenderBufferDesc edDesc = RenderBufferDesc();
+		edDesc.ShaderReadable = true;
+		edDesc.Attachment = RenderTargetAttachment::Depth;
+		edDesc.Format = RenderTargetType::Depth24;
+
+		// frame buffer
+		FrameBuffer::Sptr efb = std::make_shared<FrameBuffer>(myWindowSize.x, myWindowSize.y);
+		efb->AddAttachment(ecDesc);
+		efb->AddAttachment(edDesc);
+
+		effectLayer1 = new PostLayer(effectShader, efb);
 	}
-	// post->  
 
-	// adds a post-processing 
-	// layers.push_back(new PostLayer(POST_VS, "res/shaders/post/invert.fs.glsl"));
-	// layers.push_back(new PostLayer(POST_VS, "res/shaders/post/greyscale.fs.glsl"));
+	// effect layer 2
+	{ 
+		Shader::Sptr effectShader = std::make_shared<Shader>();
+		effectShader->Load(POST_VS, "res/shaders/post/kernel3.fs.glsl");
+
+		// scene colour 
+		RenderBufferDesc ecDesc = RenderBufferDesc();
+		ecDesc.ShaderReadable = true;
+		ecDesc.Attachment = RenderTargetAttachment::Color0;
+		ecDesc.Format = RenderTargetType::Color24; // loads with RGB
+
+		// scene depth
+		RenderBufferDesc edDesc = RenderBufferDesc();
+		edDesc.ShaderReadable = true;
+		edDesc.Attachment = RenderTargetAttachment::Depth;
+		edDesc.Format = RenderTargetType::Depth24;
+
+		// frame buffer
+		FrameBuffer::Sptr efb = std::make_shared<FrameBuffer>(myWindowSize.x, myWindowSize.y);
+		efb->AddAttachment(ecDesc);
+		efb->AddAttachment(edDesc);
+
+		// uniforms
+		effectShader->SetUniform("xKernel", glm::mat3(
+			1.0f / 9.0f * 1.0F, 1.0f / 9.0f * 1.0F, 1.0f / 9.0f * 1.0F,
+			1.0f / 9.0f * 1.0F, 1.0f / 9.0f * 1.0F, 1.0f / 9.0f * 1.0F,
+			1.0f / 9.0f * 1.0F, 1.0f / 9.0f * 1.0F, 1.0f / 9.0f * 1.0F
+		));
+
+		effectLayer2 = new PostLayer(effectShader, efb);
+		
+
+	}
 
 	useFrameBuffers = true;
 
 	// TODO: make lights move around. 
-
-	// PATH BEHAVIOUR
-	cherry::Path path = Path();
-
-	if (DEFAULT_LIGHT_ENABLED)
-		path.SetStartingPoint(postLight->position);
-
-	path.AddNode(90.0F, 83.25F, 5.0F);
-	path.AddNode(-112.0F, -130.0F, 12.0F);
-	path.AddNode(-210.0F, 0.0F, 10.0F);
-	path.AddNode(1.0F, 30.0F, 84.0F);
-	path.AddNode(-17.0F, 50.0F, 10.0F); 
-
-	// closed loop
-	path.SetClosedPath(true);
-	path.SetIncrementer(0.1F); // incrementer
-	path.SetSpeedControl(true); // speed control
-
-	// adding the path
-	if (DEFAULT_LIGHT_ENABLED && postLight != nullptr)
+	if (usePaths)
 	{
-		postLight->path = path;
+		// adding the path
+		if (DEFAULT_LIGHT_ENABLED && postLight != nullptr)
+		{
+			// PATH BEHAVIOUR
+			cherry::Path path = Path();
+
+			path.AddNode(90.0F, 83.25F, 5.0F);
+			path.AddNode(-112.0F, -130.0F, 12.0F);
+			path.AddNode(-210.0F, 0.0F, 10.0F);
+			path.AddNode(1.0F, 30.0F, 84.0F);
+			path.AddNode(-17.0F, 50.0F, 10.0F);
+
+			// closed loop
+			path.SetClosedPath(true);
+			path.SetIncrementer(0.1F); // incrementer
+			path.SetSpeedControl(true); // speed control
+
+			path.SetStartingPoint(postLight->position);
+			postLight->path = path;
+		}
+		else
+		{
+			cherry::Path path = Path();
+
+			// upper and lower positions
+			glm::vec3 posUpper{ 400.0F, 400.0F, 400.0F };
+			glm::vec3 posLower{ -400.0F, -400.0F, -400.0F };
+
+			for (PostLight* light : lights)
+			{
+				path = Path(light->position);
+				path.SetIncrementer(0.5F);
+				path.SetSpeedControl(true);
+
+				// the light may travel along a path.
+				path.SetClosedPath(true);
+				path.SetIncrementer(1.0F * (float)(rand() % 100 + 1) / 500.0F);
+
+				float t = 0;
+				glm::vec3 node;
+
+				// if the light should be given a path.
+				switch (rand() % 5) // 0 - 4 
+				{
+				case 0:
+				case 1:
+
+					for (int j = 0; j < 5; j++)
+					{
+						t = 1.0F / (float)(rand() % 200 + 1); // 1 - 500
+
+						// generates random positions for the light to travel to.
+						node = glm::vec3(glm::mix(posLower.x, posUpper.x, t), glm::mix(posLower.y, posUpper.y, t), 0);
+						path.AddNode(Vec3(node));
+					}
+					break;
+				}
+
+				light->path = path;
+				paths.push_back(path);
+			}
+		}
 	}
+
 	// // giving the path to all the lights.
 	// for (PostLight* light : lights)
 	// {
 	// 	light->path = path;
 	// 	light->path.SetIncrementer(0.01F);
 	// 	light->path.SetStartingPoint(light->position);
-	// }
+	// } 
+
+
+	// post processing test. 
+	if (layers.size() > 0 && false)
+	{
+		PostLayer * layer = new PostLayer(POST_VS, POST_FS);
+
+		// making the shader
+		Shader::Sptr sdr = std::make_shared<Shader>();
+		sdr->Load(POST_VS, POST_FS);
+		// shader->Link();
+		
+		// making the output of the framebuffer
+		cherry::FrameBuffer::Sptr output = std::make_shared<cherry::FrameBuffer>(myWindowSize.x, myWindowSize.y);
+		output->AddAttachment(sceneColor);
+		output->AddAttachment(sceneDepth);
+
+		// layers[0]->AddLayer(sdr, output);
+		layers.push_back(new PostLayer(sdr, output));
+	}
 }
 
 // scene close
 void icg::ICG_MainScene::OnClose()
 {
+	using namespace cherry;
+
 	// deleting the single post light
 	delete postLight;
+
+	// removing the lsit of point lights
+	for (int i = 0; i < lights.size(); i++)
+		delete lights[i];
+
+	lights.clear();
+
+
+	// removes the layers from the vector
+	util::removeFromVector<PostLayer>(layers, lightLayer);
+	delete lightLayer;
+
+	util::removeFromVector<PostLayer>(layers, depthLayer);
+	delete depthLayer;
+
+	util::removeFromVector<PostLayer>(layers, normalLayer);
+	delete normalLayer;
+
+	util::removeFromVector<PostLayer>(layers, effectLayer1);
+	delete effectLayer1;
+
+	util::removeFromVector<PostLayer>(layers, effectLayer2);
+	delete effectLayer2;
 
 	// deleting the ohter lights
 	for (PostLight* light : lights)
@@ -328,10 +474,20 @@ void icg::ICG_MainScene::KeyPressed(GLFWwindow* window, int key)
 		SetLightVolumesVisible(!volumesVisible);
 		break;
 
-	case GLFW_KEY_3:
-	case GLFW_KEY_4:
-	case GLFW_KEY_5:
-	case GLFW_KEY_6:
+	case GLFW_KEY_3: // position/depth buffer
+		EnablePositionView();
+		break;
+
+	case GLFW_KEY_4: // normal buffer view
+		EnableNormalView();
+		break;
+
+	case GLFW_KEY_5: // colour/material view
+		EnableMaterialView();
+		break;
+
+	case GLFW_KEY_6: // light accumulation buffer
+		EnableLightingView();
 		break;
 
 
@@ -339,8 +495,12 @@ void icg::ICG_MainScene::KeyPressed(GLFWwindow* window, int key)
 		CycleLightVolumes();
 		break;
 
-	case GLFW_KEY_8:
+	case GLFW_KEY_8: // effect 1
+		EnableEffect1();
+
 	case GLFW_KEY_9:
+		EnableEffect2();
+
 	case GLFW_KEY_0:
 		break;
 	}
@@ -457,11 +617,6 @@ void icg::ICG_MainScene::KeyReleased(GLFWwindow* window, int key)
 	case GLFW_KEY_PAGE_DOWN:
 		r_Dir[2] = 0;
 		break;
-
-		// deletes an object
-	case GLFW_KEY_0:
-		game->DeleteObjectFromScene(objectList->objects.at(0));
-		break;
 	}
 }
 
@@ -475,7 +630,7 @@ void icg::ICG_MainScene::DrawGui(float deltaTime)
 	glm::vec4& myClearColor = game->myClearColor; // clear color
 	GLFWwindow* myWindow = game->GetWindow(); // window 
 
-	
+
 	char myWindowTitle[WINDOW_TITLE_CHAR_MAX]; // window title (char array)
 	std::string wtStr = game->GetWindowTitle(); // the window title (as a string)
 
@@ -487,6 +642,13 @@ void icg::ICG_MainScene::DrawGui(float deltaTime)
 
 	// temporary integer
 	int tempInt = 0;
+
+	// moving lights
+	int lightIndex = imguiLightIndex;
+
+	glm::vec2 posLimitsX{ -250.0F, 250.0F };
+	glm::vec2 posLimitsY{ -250.0F, 250.0F };
+	glm::vec2 posLimitsZ{ 0.0F, 10.0F };
 
 	// copying the string's data into the char array
 	memcpy(myWindowTitle, wtStr.c_str(), wtStr.length());
@@ -514,9 +676,59 @@ void icg::ICG_MainScene::DrawGui(float deltaTime)
 		SetEnabledLights(tempInt);
 	}
 
+	// multiple lights
+	if (!DEFAULT_LIGHT_ENABLED)
+	{
+		ImGui::BeginTabBar("Light Position");
+		ImGui::BeginTabItem(std::string("Light").c_str());
+
+		// checking the light
+		if (ImGui::InputInt("Light", &lightIndex))
+		{
+			// light index bounds
+			lightIndex = glm::clamp(lightIndex, 0, (int)lights.size() - 1);
+			lightIndex = glm::clamp(lightIndex, 0, MAX_POST_LIGHTS - 1);
+
+			imguiCoord = lights[lightIndex]->position;
+		}
+
+		// TODO: figure out why reposition doesn't work.
+		// changing light positions
+		if (ImGui::InputFloat("X", &imguiCoord.x))
+			lights[lightIndex]->position.x = imguiCoord.x;
+
+		if (ImGui::InputFloat("Y", &imguiCoord.y))
+			lights[lightIndex]->position.y = imguiCoord.y;
+
+		if (ImGui::InputFloat("Z", &imguiCoord.z))
+			lights[lightIndex]->position.z = imguiCoord.z;
+
+		lights[lightIndex]->Update(0);
+
+		// randomizes position.
+		// TODO: fix
+		if (ImGui::Button("Randomize"))
+		{
+			// interpolation
+			glm::vec3 temp = glm::vec3(
+				glm::mix(posLimitsX.x, posLimitsX.y, (float)(rand() % 1001) / 1000.0F),
+				glm::mix(posLimitsY.x, posLimitsY.y, (float)(rand() % 1001) / 1000.0F),
+				glm::mix(posLimitsZ.x, posLimitsZ.y, (float)(rand() % 1001) / 1000.0F)
+			);
+
+			lights[lightIndex]->position = temp;
+			lights[lightIndex]->Update(0);
+			imguiCoord = temp;
+		}
+
+		imguiLightIndex = lightIndex;
+		ImGui::EndTabItem();
+
+		ImGui::EndTabBar();
+	}
+
+	// original
 	// ImGui::BeginTabBar("Lights");
-	// 
-	// if (false)
 	// {
 	// 	int light = 0;
 	// 	float coord = 0;
@@ -662,6 +874,95 @@ void icg::ICG_MainScene::CycleLightVolumes()
 	}
 }
 
+// enables position and depth buffer view
+void icg::ICG_MainScene::EnablePositionView()
+{
+	using namespace cherry;
+
+	const Game* game = Game::GetRunningGame();
+
+	// enables depth layer only.
+	layers.clear();
+	layers.push_back(depthLayer);
+
+	// updating the size of the buffer
+	depthLayer->OnWindowResize(game->GetWindowWidth(), game->GetWindowHeight());
+}
+
+// enables the nomral view
+void icg::ICG_MainScene::EnableNormalView()
+{
+	using namespace cherry;
+
+	const Game* game = Game::GetRunningGame();
+
+	// enabling normal layer only
+	layers.clear();
+	layers.push_back(normalLayer);
+
+	// updating the size of the buffer
+	normalLayer->OnWindowResize(game->GetWindowWidth(), game->GetWindowHeight());
+}
+
+// enables the view of the objects.
+void icg::ICG_MainScene::EnableMaterialView()
+{
+	// no post processing layers being used.
+	layers.clear();
+}
+
+// lighting view
+void icg::ICG_MainScene::EnableLightingView()
+{
+	using namespace cherry;
+
+	const Game* game = Game::GetRunningGame();
+
+	layers.clear();
+	layers.push_back(lightLayer);
+
+	// updating the size of the buffer
+	lightLayer->OnWindowResize(game->GetWindowWidth(), game->GetWindowHeight());
+}
+
+// enables the first effect
+void icg::ICG_MainScene::EnableEffect1()
+{
+	using namespace cherry;
+
+	if (effectLayer1 == nullptr)
+		return;
+
+	const Game* game = Game::GetRunningGame();
+
+	layers.clear();
+	layers.push_back(lightLayer);
+	layers.push_back(effectLayer1);
+
+	// updating the size of the buffer
+	lightLayer->OnWindowResize(game->GetWindowWidth(), game->GetWindowHeight());
+	effectLayer1->OnWindowResize(game->GetWindowWidth(), game->GetWindowHeight());
+}
+
+// enables effect 2
+void icg::ICG_MainScene::EnableEffect2()
+{
+	using namespace cherry;
+
+	if (effectLayer2 == nullptr)
+		return;
+
+	const Game* game = Game::GetRunningGame();
+
+	layers.clear();
+	layers.push_back(lightLayer);
+	layers.push_back(effectLayer2);
+
+	// updating the size of the buffer
+	lightLayer->OnWindowResize(game->GetWindowWidth(), game->GetWindowHeight());
+	effectLayer2->OnWindowResize(game->GetWindowWidth(), game->GetWindowHeight());
+}
+
 // loads the lights from a file
 void icg::ICG_MainScene::LoadFromFile(std::string filePath)
 {
@@ -715,7 +1016,8 @@ void icg::ICG_MainScene::LoadFromFile(std::string filePath)
 	ls_fb->AddAttachment(sceneDepth);
 
 	// adding the post processing layer. 
-	layers.push_back(new PostLayer(ls_shader, ls_fb));
+	lightLayer = new PostLayer(ls_shader, ls_fb);
+	layers.push_back(lightLayer);
 	
 	// int index = 0;
 
@@ -765,8 +1067,9 @@ void icg::ICG_MainScene::LoadFromFile(std::string filePath)
 			light->shininess = util::convertString<float>((comps[9]));
 			// index++;
 			// }
-
 			light->path = Path(light->position);
+			light->path.SetClosedPath(true);
+
 			// changing values in shader
 			light->Update(0);
 
@@ -786,6 +1089,12 @@ void icg::ICG_MainScene::LoadObjects()
 {
 	using namespace cherry;
 
+	float xOffset = 60.0F;
+	float yOffset = 60.0F;
+
+	// rotation factors
+	float rot0 = 12.5F, rot1 = 24.5F, rot2 = -14.4F;
+
 	// lights
 	// this light doesn't actually do anything.
 	Light* light = new Light(GetName(), Vec3(1.0F, 0.0F, -4.0F), Vec3(0.5F, 0.2F, 0.1F), Vec3(0.2F, 0.4F, 0.9F), 0.2, 0.2, 1.0F, 1.0F);
@@ -802,41 +1111,64 @@ void icg::ICG_MainScene::LoadObjects()
 	// primitive
 	Primitive* prim = nullptr;
 
-	prim = new PrimitiveUVSphere(5.0F, 12, 12, Vec4(0.3F, 1.0F, 0.7F, 1.0F));
-	prim->SetPosition(0.0F, 0.0F, 2.0F);
-	prim->CreateEntity(GetName(), objectMat);
-	objectList->AddObject(prim);
+	{
+		prim = new PrimitiveUVSphere(5.0F, 12, 12, Vec4(0.3F, 1.0F, 0.7F, 1.0F));
+		prim->SetPosition(xOffset * -1, yOffset * -1, 2.0F);
+		prim->CreateEntity(GetName(), objectMat);
 
+		objectList->AddObject(prim);
+		objRots.push_back(ObjRotate{ prim, glm::vec3(rot1, -rot2, rot0) });
+	}
 
-	prim = new PrimitiveCube(7.0F, 2.0F, 4.5F, Vec4(0.9F, 0.3F, 0.54F, 1.0F));
-	prim->SetPosition(5.0F, 10.0F, 1.0F);
-	prim->CreateEntity(GetName(), objectMat);
-	objectList->AddObject(prim);
+	{
+		prim = new PrimitiveCube(7.0F, 2.0F, 4.5F, Vec4(0.9F, 0.3F, 0.54F, 1.0F));
+		prim->SetPosition(xOffset * 0, yOffset * -1, 1.0F);
+		prim->CreateEntity(GetName(), objectMat);
 
-	prim = new PrimitiveCylinder(2.0F, 15, 5, Vec4(0.111F, 0.421F, 0.231F, 1.0F));
-	prim->SetPosition(6.0F, 3.1842F, 9.0F);
-	prim->CreateEntity(GetName(), objectMat);
-	objectList->AddObject(prim);
+		objectList->AddObject(prim);
+		objRots.push_back(ObjRotate{ prim, glm::vec3(-rot2, rot0, rot1) });
+	}
 
-	prim = new PrimitiveDiamond(2.5F, 10.0F, 8, 0.5F, Vec4(0.2121F, 0.121F, 0.431F, 1.0F));
-	prim->SetPosition(26.0F, -13.1842F, 9.0F);
-	prim->CreateEntity(GetName(), objectMat);
-	objectList->AddObject(prim);
+	{
+		prim = new PrimitiveCylinder(5.0F, 15, 5, Vec4(0.111F, 0.421F, 0.231F, 1.0F));
+		prim->SetPosition(xOffset * 1, yOffset * -1, 9.0F);
+		prim->CreateEntity(GetName(), objectMat);
 
-	prim = new PrimitiveCapsule(23.0F, 19.0F, 12, 10, Vec4(0.9221F, 0.521F, 0.1431F, 1.0F));
-	prim->SetPosition(26.0F, -23.1842F, 40.0F);
-	prim->CreateEntity(GetName(), objectMat);
-	prim->Rotate(Vec3(45.0F, 0.0F, 0.0F), true);
-	objectList->AddObject(prim);
+		objectList->AddObject(prim);
+		objRots.push_back(ObjRotate{ prim, glm::vec3(-rot1, rot0, rot2) });
+	}
 
+	{
+		prim = new PrimitiveDiamond(5.0F, 10.0F, 8, 0.5F, Vec4(0.2121F, 0.121F, 0.431F, 1.0F));
+		prim->SetPosition(xOffset * -1, yOffset * 0, 9.0F);
+		prim->CreateEntity(GetName(), objectMat);
+		
+		objectList->AddObject(prim);
+		objRots.push_back(ObjRotate{ prim, glm::vec3(rot0, rot2 * rot1, -rot1) });
+	}
 
+	{
+		prim = new PrimitiveCapsule(10.0F, 19.0F, 12, 10, Vec4(0.9221F, 0.521F, 0.1431F, 1.0F));
+		prim->SetPosition(xOffset * 0, yOffset * 0, 40.0F);
+		prim->CreateEntity(GetName(), objectMat);
+		prim->Rotate(Vec3(45.0F, 0.0F, 0.0F), true);
+
+		objectList->AddObject(prim);
+		objRots.push_back(ObjRotate{ prim, glm::vec3(rot2, rot0, -rot1) });
+	}
 
 	// platform
-	prim = new Plane(500.0F, 500.0F, false, Vec4(0.4F, 0.4F, 0.4F, 1.0F));
+	prim = new Plane(500.0F, 500.0F, true, Vec4(0.4F, 0.4F, 0.4F, 1.0F));
 	prim->SetPosition(0, 0, -5);
 	prim->CreateEntity(GetName(), objectMat);
 	objectList->AddObject(prim);
 
+	// wall
+	prim = new Plane(50.0F, 50.0F, true, Vec4(1.0F, 0.2F, 0.4F, 1.0F));
+	prim->SetPosition(0, -100, 25.0f);
+	prim->CreateEntity(GetName(), objectMat);
+	prim->RotateY(90.0F, true);
+	objectList->AddObject(prim);
 
 
 	// prim = new PrimitiveUVSphere(5.0F, 12, 12, Vec4(0.3F, 1.0F, 0.7F, 1.0F));
@@ -911,7 +1243,17 @@ void icg::ICG_MainScene::Update(float deltaTime)
 		)
 	);
 
-
+	// settng the paths because they weren't set before for some reason.
+	if (!DEFAULT_LIGHT_ENABLED && pathsSet == false)
+	{
+		for (int i = 0; i < paths.size() && i < lights.size(); i++)
+		{
+			paths[i].SetStartingPoint(lights[0]->position);
+			paths[i].SetClosedPath(true);
+			lights[i]->path = paths[i];
+		}
+		pathsSet = true;
+	}
 
 	// update post light
 	if (DEFAULT_LIGHT_ENABLED && postLight != nullptr)
@@ -923,6 +1265,14 @@ void icg::ICG_MainScene::Update(float deltaTime)
 	{
 		SetEnabledLights(1);
 	}
+
+	// rotates the objects
+	for (ObjRotate oRot : objRots)
+	{
+		if (oRot.object != nullptr)
+			oRot.object->Rotate(oRot.rInc * deltaTime, true);
+	}
+
 	// updating the lights
 	for (PostLight* light : lights)
 		light->Update(deltaTime);

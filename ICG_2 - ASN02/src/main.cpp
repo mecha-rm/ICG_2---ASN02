@@ -6,7 +6,7 @@
 	- Stephane Gagnon (100694227)
 	- Roderick "R.J." Montague (100701758)
 	* do note that only those in Intermediate Computer Graphics are listed.
- * Date: 03/03/2020
+ * Date: 03/08/2020
  * Description: Intermdiate Computer Graphics - Assignment 2
  * References:
 */

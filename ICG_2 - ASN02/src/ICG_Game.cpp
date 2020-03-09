@@ -1,3 +1,16 @@
+/*
+ * Name: Bonus Fruit
+	- Kennedy Adams	(100632983)
+	- Jonah Griffin	(100702748)
+	- Nathan Tuck	(100708651)
+	- Stephane Gagnon (100694227)
+	- Roderick "R.J." Montague (100701758)
+ * Date: 03/08/2020
+ * Description: game class (makes opening scene)
+ * References:
+	* http://www.cplusplus.com/reference/vector/vector/resize/
+*/
+
 #include "ICG_Game.h"
 #include "ICG_MainScene.h"
 

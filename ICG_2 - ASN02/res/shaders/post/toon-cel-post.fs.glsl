@@ -21,15 +21,17 @@ void main()
 	// re-normalizing the normal so that it's of length 1.
 	// vec3 norm = normalize(inNormal);
 
-	vec4 worldPos = texture(s_CameraDepth, inUV);
+	vec3 screenPos = vec3(0, 0, 0);
 
 	// position in the screen coordinates
-	worldPos.x = inScreenCoords.x;
-	worldPos.y = inScreenCoords.y;
+	screenPos.x = inScreenCoords.x;
+	screenPos.y = inScreenCoords.y;
+	screenPos.z = texture(s_CameraDepth, inUV).r;
 	
 	// finding the pixel in reference to the camera. The closer the value is to 0, the closer it is to the edge.
-	float edge = dot(normalize(vec3(0, 0, 0) - worldPos.xyz), inNormal);
+	float edge = dot(normalize(a_CameraPos - screenPos.xyz), inNormal);
 
+	// gets the pixel
 	vec4 pixel = texture(xImage, inUV);
 
 	// TODO: gamma correction
@@ -54,12 +56,13 @@ void main()
 	// does not work.
 	// outline thickness
 	// if it's a background pixel, it isn't counted.
-	// if(edge < 0.2F && texture(s_CameraDepth, inUV).r * 2 - 1 != 1.0F)
-	// {
-	// 	outColor = vec4(0, 0, 0, 1.0F);
-	// }
-	// else{
-	// 	outColor = inColor;
-	// }
+	if(edge < 0.2F && texture(s_CameraDepth, inUV).r * 2 - 1 != 1.0F)
+	{
+		outColor = vec4(1.0F, 1.0F, 1.0F, 1.0F);
+	}
+	else{
+		outColor = inColor;
+	}
+
 	outColor = texture(xImage, inUV);
 }

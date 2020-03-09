@@ -1,3 +1,16 @@
+/*
+ * Name: Bonus Fruit
+	- Kennedy Adams	(100632983)
+	- Jonah Griffin	(100702748)
+	- Nathan Tuck	(100708651)
+	- Stephane Gagnon (100694227)
+	- Roderick "R.J." Montague (100701758)
+ * Date: 03/08/2020
+ * Description: post processing light class.
+ * References:
+	* http://www.cplusplus.com/reference/vector/vector/resize/
+*/
+
 #pragma once
 #include <glm/vec3.hpp>
 #include "cherry/Shader.h"

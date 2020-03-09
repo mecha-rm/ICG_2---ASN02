@@ -98,12 +98,19 @@ void cherry::PostLayer::PostRender(const cherry::Camera::Sptr& camera)
 	// We grab the application singleton to get the size of the screen
 	// ecs.ctx_or_set<AppFrameState>();
 	// CurrentRegistry().ctx_or_set<FrameBuffer::Sptr>();
-	FrameBuffer::Sptr mainBuffer = CurrentRegistry().ctx<FrameBuffer::Sptr>();
+
+	// the main buffer
+	FrameBuffer::Sptr mainBuffer;
+
+	// the main buffer
+	mainBuffer = (initialBuffer == nullptr) ?
+		CurrentRegistry().ctx<FrameBuffer::Sptr>() :
+		initialBuffer;
 
 	// The last output will start as the output from the rendering
-	FrameBuffer::Sptr lastPass = mainBuffer;
+	FrameBuffer::Sptr& lastPass = mainBuffer;
 
-	// getting the near nad far planes.
+	// getting the near and far planes.
 	float nearPlane = camera->IsPerspectiveCamera() ? camera->GetNearPerspective() : camera->GetNearOrthographic();
 	float farPlane = camera->IsPerspectiveCamera() ? camera->GetFarPerspective() : camera->GetFarOrthographic();
 
@@ -114,6 +121,8 @@ void cherry::PostLayer::PostRender(const cherry::Camera::Sptr& camera)
 	 
 	// We'll iterate over all of our render passes
 	for (const PostPass& pass : myPasses) {
+	// for (int i = 0; i < myPasses.size(); i++) {
+	// 	PostPass& pass = myPasses[i];
 
 		// We'll bind our post-processing output as the current render target and clear it
 		pass.Output->Bind(RenderTargetBinding::Draw);
@@ -126,6 +135,7 @@ void cherry::PostLayer::PostRender(const cherry::Camera::Sptr& camera)
 		
 		lastPass->GetAttachment(RenderTargetAttachment::Color0)->Bind(0);
 		pass.Shader->SetUniform("xImage", 0);
+
 
 		// camera components for the shaders.
 		pass.Shader->SetUniform("a_View", camera->GetView());
@@ -160,20 +170,26 @@ void cherry::PostLayer::PostRender(const cherry::Camera::Sptr& camera)
 		// 	else {
 		// 		input.Pass->Output->Bind(ix + 1, input.Attachment);
 		// 	}
-		// } 
+		// }  
 
-		// post processed lights
-		lastPass->Bind(1, RenderTargetAttachment::Depth);
+		// post processed lights 
+		lastPass->Bind(1, RenderTargetAttachment::Depth); 
 		lastPass->Bind(2, RenderTargetAttachment::Color0);
 
 		pass.Shader->SetUniform("xScreenRes", glm::vec2(pass.Output->GetWidth(), pass.Output->GetHeight()));
+	
+		// if(i == myPasses.size() - 1)
 		myFullscreenQuad->Draw(); 
 
 		// Unbind the output pass so that we can read from it
 		pass.Output->UnBind();
 		// Update the last pass output to be this passes output
 		lastPass = pass.Output;
+		
+
+
 	}
+	// std::cout << std::endl;
 	
 	// Bind the last buffer we wrote to as our source for read operations
 	lastPass->Bind(RenderTargetBinding::Read);
@@ -182,11 +198,10 @@ void cherry::PostLayer::PostRender(const cherry::Camera::Sptr& camera)
 	FrameBuffer::Blit({ 0, 0, lastPass->GetWidth(), lastPass->GetHeight() },
 		{ 0, 0, game->GetWindowWidth(), game->GetWindowHeight() }, BufferFlags::All, MagFilter::Nearest);
 
-	// lastPass->Bind(0, RenderTargetAttachment::Depth);
-	// lastPass->Bind(0, RenderTargetAttachment::Color0);
 
 	// Unbind the last buffer from read operations, so we can write to it again later
 	lastPass->UnBind();
+	initialBuffer = nullptr;
 
 	glEnable(GL_DEPTH_TEST);
 	// glDepthMask(GL_TRUE);
@@ -194,4 +209,34 @@ void cherry::PostLayer::PostRender(const cherry::Camera::Sptr& camera)
 	// depthCheck = GL_DEPTH_FUNC;
 	// std::cout << "Depth Check 3: " << std::boolalpha << depthCheck << "\n" << std::endl;
 
+	// clears initial buffer for next post layer pass
+	initialBuffer = nullptr;
+
+	// CurrentRegistry().ctx_or_set<FrameBuffer::Sptr>(lastPass);
+}
+
+// returns the shader from the last pass
+const cherry::Shader::Sptr& cherry::PostLayer::GetLastPassShader()
+{
+	if (!myPasses.empty()) // there are layers
+	{
+		return myPasses.at(myPasses.size() - 1).Shader;
+	}
+	else // no layers
+	{
+		return nullptr;
+	}
+}
+
+// returns the frame buffer from the last pass
+const cherry::FrameBuffer::Sptr& cherry::PostLayer::GetLastPassBuffer()
+{
+	if (!myPasses.empty()) // there are layers
+	{
+		return myPasses.at(myPasses.size() - 1).Output;
+	}
+	else // there are no layers
+	{
+		return nullptr;
+	}
 }
