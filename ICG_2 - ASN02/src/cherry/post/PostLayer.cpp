@@ -155,23 +155,6 @@ void cherry::PostLayer::PostRender(const cherry::Camera::Sptr& camera)
 		pass.Shader->SetUniform("a_NearPlane", nearPlane);
 		pass.Shader->SetUniform("a_FarPlane", farPlane);
 
-		// binding the textures in order
-		// the frame buffers do not have any input component, so this loop cannot be used.
-		// for (size_t ix = 0; ix < pass.Inputs.size(); ix++) {
-		// 	const auto& input = pass->Inputs[ix];
-		// 	if (input.Pass == nullptr) {
-		// 		if (input.UsePrevFrame && state.Last.Output != nullptr) {
-		// 			state.Last.Output->Bind(ix + 1, input.Attachment);
-		// 		}
-		// 		else {
-		// 			mainBuffer->Bind(ix + 1, input.Attachment);
-		// 		}
-		// 	}
-		// 	else {
-		// 		input.Pass->Output->Bind(ix + 1, input.Attachment);
-		// 	}
-		// }  
-
 		// post processed lights 
 		lastPass->Bind(1, RenderTargetAttachment::Depth); 
 		lastPass->Bind(2, RenderTargetAttachment::Color0);

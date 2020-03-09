@@ -11,7 +11,7 @@
 	* http://www.cplusplus.com/reference/vector/vector/resize/
 */
 
-// the maximum amount of post processed lights.
+// the maximum amount of post processed lights. 
 #define MAX_POST_LIGHTS 25
 
 // Main Scene
@@ -136,7 +136,7 @@ void icg::ICG_MainScene::OnOpen()
 		ls_fb->AddAttachment(sceneDepth);
 
 		// adding the layer
-		lightLayer = new PostLayer(postLight->shader, ls_fb);
+		lightLayer = new PostLayer(postLight->shader, ls_fb);  
 		layers.push_back(lightLayer);
 		enabledLights = 1;
 	}

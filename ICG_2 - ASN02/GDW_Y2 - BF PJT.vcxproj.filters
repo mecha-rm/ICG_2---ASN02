@@ -1673,8 +1673,6 @@
     <None Include="res\shaders\post\blinn-phong-post-multi.fs.glsl" />
     <None Include="res\shaders\post\toon-cel-post.fs.glsl" />
     <None Include="res\shaders\post\bloom_highlight.fs.glsl" />
-    <None Include="res\shaders\post\convolution.fs.glsl" />
-    <None Include="res\shaders\post\depth_of_field.fs.glsl" />
     <None Include="res\shaders\post\normal-buffer.fs.glsl" />
     <None Include="res\shaders\post\depth-buffer.fs.glsl" />
   </ItemGroup>
